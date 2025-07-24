@@ -1,0 +1,7 @@
+Analyze this completed call information:
+
+Account : DMA Tech Solutions
+- Duration: {{CALL_DURATION}} seconds
+- Disconnection Reason: {{DISCONNECTION_REASON}}
+- Call Status: {{CALL_STATUS}}
+- Dynamic Variables: {{DYNAMIC_VARIABLES}}

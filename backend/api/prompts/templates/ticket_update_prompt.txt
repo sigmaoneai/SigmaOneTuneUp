@@ -1,0 +1,94 @@
+You are tasked with creating or updating a structured IT support ticket based on a transcript of a call between a dental
+clinic administrator and an IT support agent. Your goal is to extract relevant information from the transcript and format
+it into a JSON structure that can be used to create or update a successful IT support ticket.
+
+Customer information:
+<customer>
+{{CUSTOMER}}
+</customer>
+
+Here is the transcript of the call:
+
+<transcript>
+{{TRANSCRIPT}}
+</transcript>
+
+Carefully analyze the transcript and extract the following key elements:
+1. Issue: The main problem or concern reported by the dental clinic administrator
+2. Assets: All devices or software experiencing the issue.
+    a. Asset ID: Identifier of the specific asset
+    b. Asset Name: Name of the specific asset
+    c. Asset Type: The category of the specific asset (e.g., computer, printer, software)
+    d. Error messages: List all mentioned error messages for the asset, if there are any.
+    e. Attempted Solutions: Any steps already taken to resolve the issue
+3. Priority: The urgency of the issue (Low, Medium, High, Critical)
+4. Comments: Summary of above elements 1 and 2 in bullet-point format
+5. Client info: Customer ID and contact ID of the calling person
+6. Previous Ticket ID: The issue is being addressed in previously created ticket
+7. Ticket analysis:
+    a. Provide a concise summary of the call, highlighting key points discussed, decisions made, and any action items or outcomes.
+    b. Identify any potential issues mentioned or implied during the call, including concerns, challenges, or risks that may need further attention. Summarize in two sentences.
+    c. Suggest clear and actionable next steps based on the discussion during the call, including tasks, responsibilities, and timelines if applicable.
+    d. Analyze the sentiment of the call transcript and classify it into one of three categories: positive, neutral, or negative, and provide the result as a single word.",
+    e. Justify the sentiment classification by referencing the user's tone, word choice, and context."
+
+Create a JSON structure with the following format:
+
+{
+  "issue": "Brief description of the problem",
+  "assets": [
+    {
+      "asset_id": "ID of the affected asset",
+      "asset_name": "Name of the affected asset",
+      "asset_type": "Category of the asset",
+      "error_messages": "All mentioned error messages",
+      "attempted_solutions": "Description of steps already taken"
+    }
+  ],
+  "priority": "Urgency level",
+  "comments": "Summary in bullet-points",
+  "client_info": {
+    "customer_id": "Customer ID of the dental clinic",
+    "contact_id": "Contact ID of the person who called",
+    "contact_name": "Contact name of the person who called",
+    "unknown_contact_name": "Unknown contact's name"
+  },
+  "previous_ticket_id": "The issue is being addressed in previously created ticket",
+  "ticket_analysis": {
+    "summary": "Concise summary of the call",
+    "potential_issues": "Potential issues mentioned or implied during the call",
+    "recommended_next_steps": "Clear and actionable next steps based on the discussion during the call",
+    "sentiment": "User sentiment classified into one of three categories: positive, neutral, or negative. The JSON property value must be exactly one word, in lowercase, from the listed options.",
+    "sentiment_details": "A brief justification for the sentiment."
+  }
+}
+
+To extract the required information:
+1. Issue: Identify the main complaint or problem described by the dental clinic administrator. Summarize it concisely, should be maximum 6 words long.
+2. Assets: Look for mentions of specific devices, software, or systems involved in the issue. Should be a list of asset objects. If no assets were mentioned, list should be empty.
+    a. Asset ID: Identify the asset ID of the affected asset. Should be of type integer.
+    b. Asset Name: Look for the asset name
+    c. Asset Type: Categorize the asset based on common IT categories (e.g., hardware, software, network).
+    d. Error messages: List all mentioned error messages for the asset, if there are any. For example, error messages shown on the
+        device screen, etc. If there are no any, should be empty string. If listed, should be a single string value.
+    e. Attempted Solutions: Note any actions the administrator mentions they've already tried to resolve the issue for the asset. This should be detailed.
+3. Priority: Assess the urgency based on the impact on operations and the administrator's tone. Use your judgment to assign a priority level.
+4. Comments: Summarize everything from points 1 and 2 in bullet-point format. If assets are mentioned, their names should have the following format: "Manufacturer, Model Name". Should be of type list of strings.
+5. Client Info:
+    a. customer_id: Retrieve customer ID of the dental clinic. Should be of type integer.
+    b. contact_id: Retrieve contact ID of the calling person. Should be of type integer.
+    c. contact_name: Retrieve contact name of the calling person. Should be of type string.
+    d. unknown_contact_name: In case if the calling person could not be found in the customer's contacts list, the
+        default contact ID will be used. This field will be used to log this unknown contact. If it's empty, then the
+        contact was found in the list. Should be of type string.
+6. Previous Ticket ID: If user asks something, which was already addressed before (for example, user is asking about an
+issue he had asked few hours earlier and wants to hear some updates). Should be of type integer.
+7. Ticket analysis:
+    a. summary: Provide a concise summary of the call, highlighting key points discussed, decisions made, and any action items or outcomes.
+    b. potential_issues: Identify any potential issues mentioned or implied during the call, including concerns, challenges, or risks that may need further attention. Summarize in two sentences.
+    c. recommended_next_steps: Suggest clear and actionable next steps based on the discussion during the call, including tasks, responsibilities, and timelines if applicable.
+    d. sentiment: Analyze the sentiment of the call transcript and classify it into one of three categories: positive, neutral, or negative, and provide the result as a single word.",
+    e. sentiment_details: Justify the sentiment classification by referencing the user's tone, word choice, and context."
+If any information is not explicitly mentioned in the transcript, use your best judgment to infer it from the context. If you cannot reasonably infer the information, use "Unknown" as the value for that field.
+
+Ensure that the JSON is properly formatted and valid. Return response in JSON.

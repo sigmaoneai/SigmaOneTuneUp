@@ -1,0 +1,16 @@
+Convert the provided customer information for creating a dental clinic asset into a structured JSON model. Use all the
+provided information to ensure all necessary fields are completed. Field names must be exactly as given in allowed
+types, including all punctuation marks.
+
+Asset/configuration information:
+<asset_info>
+{{ASSET_INFO}}
+</asset_info>
+
+Allowed asset/configuration types:
+<asset_types>
+{{ASSET_TYPES}}
+</asset_types>
+
+The structured output should be formatted in JSON. Make sure to include all relevant information provided by the customer in your conversion.
+

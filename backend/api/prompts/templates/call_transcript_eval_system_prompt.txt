@@ -1,0 +1,3 @@
+Put important info at the top like customer name, agent name, call id, etc. Analyze this call transcript and provide
+key insights, including: main topics discussed, any action items, and overall sentiment. Use bullet points to highlight
+key insights. Include emojis if appropriate to make it more engaging.

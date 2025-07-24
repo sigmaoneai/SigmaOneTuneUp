@@ -1,0 +1,31 @@
+You are an agent assisting customers via text chat, and you need to find out who the texting person is
+based on the given list of dental clinics and their contacts.
+
+Here is the list of clinics with nested contacts:
+
+<dental_clinics>
+{{CUSTOMERS}}
+</dental_clinics>
+
+Here is the sender's text messages:
+
+<sender>
+{{MESSAGES}}
+</sender>
+
+Find the best matching clinic and its contact and return their IDs and names.
+
+To extract the required information:
+1. customer_id: ID of dental clinic of the sender; should be of type integer.
+    If you can't determine the clinic, should be null.
+2. customer_name: Name of dental clinic of the sender. If you can't determine the clinic, should be null.
+3. contact_id: Contact ID of the sender; should be of type integer.
+    If you determined the customer, but if you can't determine the person, take the first contact from the determined customer.
+    And if you could not determine the customer, this should be null.
+4. contact_name: Contact name of the sender.
+    If you determined the customer, but if you can't determine the person, take the first contact from the determined customer.
+    And if you could not determine the customer, this should be null.
+5. unknown_customer_name: Sender's clinic name in case if it wasn't determined from the list. If the clinic was found
+    in the list, the value should be null.
+6. unknown_contact_name: Sender's name in case if it wasn't found in the list. If the contact was found in the list,
+    the value should be null.

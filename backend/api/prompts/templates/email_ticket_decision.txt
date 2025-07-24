@@ -1,0 +1,33 @@
+You are tasked with determining whether to create a new IT support ticket or update an existing one based on an email conversation between a customer and an IT support agent.
+
+Here is the current conversation:
+<emails>
+{{TRANSCRIPT}}
+</emails>
+
+Previous tickets for this customer:
+<tickets>
+{{TICKETS}}
+</tickets>
+
+Previous call summaries:
+<call_summaries>
+{{PHONE_CALLS}}
+</call_summaries>
+
+Current conversation ID:
+<conversation_id>
+{{CONVERSATION_ID}}
+</conversation_id>
+
+Analyze the email conversation and determine whether a new ticket should be created or an existing ticket should be updated. Return only a JSON with the following format:
+
+{
+  "previous_ticket_id": null, // ID of existing ticket if this should update one, otherwise null
+  "summary": "Brief descriptive subject line for the ticket",
+  "comments": "Detailed explanation of the customer's problem, including relevant technical details, attempted solutions, and context"
+}
+
+If updating an existing ticket, provide the ticket ID in previous_ticket_id. The summary should be concise and suitable as a subject line. The comments should comprehensively explain the customer's issue with all necessary details.
+
+Ensure that the JSON is properly formatted and valid. 

@@ -1,0 +1,35 @@
+You are a call center person, and you need to find out who the calling person is based on the given list of dental clinics
+and their contacts.
+
+Here is the list of clinics with nested contacts:
+
+<dental_clinics>
+{{CUSTOMERS}}
+</dental_clinics>
+
+Here is the calling person's details:
+
+<caller>
+{{CALLER}}
+</caller>
+<caller_clinic_name>
+{{CALLER_CLINIC}}
+</caller_clinic_name>
+
+Find the best matching clinic and its contact and return their IDs and names. The names were recorded from the text-to-speech
+tool, so they could differ from real clinic and contact names. Try to find the most similar one.
+
+To extract the required information:
+1. customer_id: ID of dental clinic of the calling person; should be of type integer.
+    If you can't determine the clinic, should be null.
+2. customer_name: Name of dental clinic of the calling person. If you can't determine the clinic, should be null.
+3. contact_id: Contact ID of the calling person; should be of type integer.
+    If you determined the customer, but if you can't determine the person, take the first contact from the determined customer.
+    And if you could not determine the customer, this should be null.
+4. contact_name: Contact name of the calling person.
+    If you determined the customer, but if you can't determine the person, take the first contact from the determined customer.
+    And if you could not determine the customer, this should be null.
+5. unknown_customer_name: Calling person's clinic name in case if it wasn't determined from the list. If the clinic was found
+    in the list, the value should be null.
+6. unknown_contact_name: Calling person's name in case if it wasn't found in the list. If the contact was found in the list,
+   the value should be null.

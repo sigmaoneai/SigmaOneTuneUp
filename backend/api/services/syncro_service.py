@@ -1,0 +1,343 @@
+import httpx
+import os
+from typing import Dict, Any, Optional, List
+from loguru import logger
+
+class SyncroMSPService:
+    def __init__(self):
+        self.api_key = os.getenv("SYNCROMSP_API_KEY")
+        self.base_url = os.getenv("SYNCROMSP_API_URL")
+        self.tickets_path = os.getenv("SYNCROMSP_TICKETS_PATH", "/api/v1/tickets")
+        self.customers_path = os.getenv("SYNCROMSP_CUSTOMERS_PATH", "/api/v1/customers")
+        self.ticket_comments_path = os.getenv("SYNCROMSP_TICKET_COMMENTS_PATH", "/comment")
+        
+        # READ-ONLY MODE: Log configuration status
+        if not self.api_key or not self.base_url:
+            logger.warning("SyncroMSP API credentials not found - running in READ-ONLY mode with mock data")
+        else:
+            logger.info("SyncroMSP credentials found but service is configured for READ-ONLY mode")
+            
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        } if self.api_key else {}
+    
+    # ============================================================================
+    # READ OPERATIONS (ACTIVE)
+    # ============================================================================
+    
+    async def get_tickets(self, status: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get tickets from SyncroMSP - READ-ONLY OPERATION"""
+        try:
+            if not self.api_key or not self.base_url:
+                logger.info("READ-ONLY: No SyncroMSP credentials, returning mock data")
+                return self._get_mock_tickets(status, limit)
+            
+            async with httpx.AsyncClient() as client:
+                params = {"limit": limit}
+                if status:
+                    params["status"] = status
+                
+                response = await client.get(
+                    f"{self.base_url}{self.tickets_path}",
+                    headers=self.headers,
+                    params=params
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    tickets = data.get("tickets", [])
+                    logger.info(f"Retrieved {len(tickets)} tickets from SyncroMSP")
+                    return tickets
+                else:
+                    logger.error(f"Failed to get tickets: {response.status_code} - {response.text}")
+                    logger.info("Falling back to mock data due to SyncroMSP API error")
+                    return self._get_mock_tickets(status, limit)
+                    
+        except Exception as e:
+            logger.error(f"Error getting SyncroMSP tickets: {str(e)}")
+            logger.info("Falling back to mock data due to connection error")
+            return self._get_mock_tickets(status, limit)
+    
+    async def get_ticket(self, ticket_id: int) -> Dict[str, Any]:
+        """Get a specific ticket from SyncroMSP - READ-ONLY OPERATION"""
+        try:
+            if not self.api_key or not self.base_url:
+                logger.info("READ-ONLY: No SyncroMSP credentials, returning mock data")
+                return self._get_mock_ticket(ticket_id)
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}{self.tickets_path}/{ticket_id}",
+                    headers=self.headers
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    ticket = data.get("ticket", {})
+                    logger.info(f"Retrieved ticket {ticket_id} from SyncroMSP")
+                    return ticket
+                else:
+                    logger.error(f"Failed to get ticket: {response.status_code} - {response.text}")
+                    logger.info("Falling back to mock data due to SyncroMSP API error")
+                    return self._get_mock_ticket(ticket_id)
+                    
+        except Exception as e:
+            logger.error(f"Error getting SyncroMSP ticket: {str(e)}")
+            logger.info("Falling back to mock data due to connection error")
+            return self._get_mock_ticket(ticket_id)
+    
+    async def get_customers(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get customers from SyncroMSP - READ-ONLY OPERATION"""
+        try:
+            if not self.api_key or not self.base_url:
+                logger.info("READ-ONLY: No SyncroMSP credentials, returning mock data")
+                return self._get_mock_customers(limit)
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}{self.customers_path}",
+                    headers=self.headers,
+                    params={"limit": limit}
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    customers = data.get("customers", [])
+                    logger.info(f"Retrieved {len(customers)} customers from SyncroMSP")
+                    return customers
+                else:
+                    logger.error(f"Failed to get customers: {response.status_code} - {response.text}")
+                    logger.info("Falling back to mock data due to SyncroMSP API error")
+                    return self._get_mock_customers(limit)
+                    
+        except Exception as e:
+            logger.error(f"Error getting SyncroMSP customers: {str(e)}")
+            logger.info("Falling back to mock data due to connection error")
+            return self._get_mock_customers(limit)
+    
+    async def get_customer(self, customer_id: int) -> Dict[str, Any]:
+        """Get a specific customer from SyncroMSP - READ-ONLY OPERATION"""
+        try:
+            if not self.api_key or not self.base_url:
+                logger.info("READ-ONLY: No SyncroMSP credentials, returning mock data")
+                return self._get_mock_customer(customer_id)
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}{self.customers_path}/{customer_id}",
+                    headers=self.headers
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    customer = data.get("customer", {})
+                    logger.info(f"Retrieved customer {customer_id} from SyncroMSP")
+                    return customer
+                else:
+                    logger.error(f"Failed to get customer: {response.status_code} - {response.text}")
+                    logger.info("Falling back to mock data due to SyncroMSP API error")
+                    return self._get_mock_customer(customer_id)
+                    
+        except Exception as e:
+            logger.error(f"Error getting SyncroMSP customer: {str(e)}")
+            logger.info("Falling back to mock data due to connection error")
+            return self._get_mock_customer(customer_id)
+    
+    # ============================================================================
+    # CUD OPERATIONS (DISABLED FOR READ-ONLY MODE)
+    # ============================================================================
+    
+    async def create_ticket(self, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
+        """CREATE OPERATION DISABLED - READ-ONLY MODE"""
+        logger.warning(f"BLOCKED CREATE OPERATION: Attempt to create ticket in SyncroMSP with data: {ticket_data}")
+        
+        raise Exception(
+            "CREATE operations are disabled - Application is in READ-ONLY mode. "
+            "SyncroMSP ticket creation is not permitted to prevent unintended modifications."
+        )
+    
+    async def update_ticket(self, ticket_id: int, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
+        """UPDATE OPERATION DISABLED - READ-ONLY MODE"""
+        logger.warning(f"BLOCKED UPDATE OPERATION: Attempt to update ticket {ticket_id} in SyncroMSP with data: {ticket_data}")
+        
+        raise Exception(
+            "UPDATE operations are disabled - Application is in READ-ONLY mode. "
+            "SyncroMSP ticket updates are not permitted to prevent unintended modifications."
+        )
+    
+    async def add_comment(self, ticket_id: int, comment: str, hidden: bool = False) -> Dict[str, Any]:
+        """UPDATE OPERATION DISABLED - READ-ONLY MODE"""
+        logger.warning(f"BLOCKED COMMENT OPERATION: Attempt to add comment to ticket {ticket_id} in SyncroMSP: {comment[:50]}...")
+        
+        raise Exception(
+            "COMMENT operations are disabled - Application is in READ-ONLY mode. "
+            "SyncroMSP comment additions are not permitted to prevent unintended modifications."
+        )
+    
+    # ============================================================================
+    # MOCK DATA HELPERS (FOR READ-ONLY FALLBACKS)
+    # ============================================================================
+    
+    def _get_mock_tickets(self, status: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """Return mock ticket data for read-only operations"""
+        mock_tickets = [
+            {
+                "id": 1,
+                "subject": "Email server not responding",
+                "status": "open",
+                "priority": "high",
+                "customer_id": 1,
+                "created_at": "2024-03-15T09:30:00Z",
+                "read_only_mock": True
+            },
+            {
+                "id": 2,
+                "subject": "Network connectivity issues",
+                "status": "urgent", 
+                "priority": "critical",
+                "customer_id": 2,
+                "created_at": "2024-03-14T16:45:00Z",
+                "read_only_mock": True
+            }
+        ]
+        
+        if status:
+            mock_tickets = [t for t in mock_tickets if t["status"] == status]
+        
+        return mock_tickets[:limit]
+    
+    def _get_mock_ticket(self, ticket_id: int) -> Dict[str, Any]:
+        """Return mock ticket details for read-only operations"""
+        return {
+            "id": ticket_id,
+            "subject": f"Mock Ticket #{ticket_id}",
+            "status": "open",
+            "priority": "medium",
+            "customer_id": 1,
+            "description": "This is mock ticket data for read-only operations",
+            "created_at": "2024-03-15T09:30:00Z",
+            "read_only_mock": True,
+            "notice": "This is mock data - real SyncroMSP integration is in read-only mode"
+        }
+    
+    def _get_mock_customers(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Return mock customer data for read-only operations"""
+        mock_customers = [
+            {
+                "id": 1,
+                "business_name": "Acme Corporation",
+                "contact_name": "John Smith",
+                "email": "john@acme.com",
+                "phone": "(555) 123-4567",
+                "read_only_mock": True
+            },
+            {
+                "id": 2,
+                "business_name": "Tech Solutions Inc",
+                "contact_name": "Sarah Johnson", 
+                "email": "sarah@techsolutions.com",
+                "phone": "(555) 987-6543",
+                "read_only_mock": True
+            }
+        ]
+        
+        return mock_customers[:limit]
+    
+    def _get_mock_customer(self, customer_id: int) -> Dict[str, Any]:
+        """Return mock customer details for read-only operations"""
+        return {
+            "id": customer_id,
+            "business_name": f"Mock Customer #{customer_id}",
+            "contact_name": "Mock Contact",
+            "email": f"contact{customer_id}@mockcompany.com",
+            "phone": f"(555) {customer_id:03d}-0000",
+            "read_only_mock": True,
+            "notice": "This is mock data - real SyncroMSP integration is in read-only mode"
+        }
+
+# ============================================================================
+# COMMENTED OUT: Original CUD operations (completely disabled)
+# ============================================================================
+
+"""
+# ORIGINAL SYNCROMSP CUD OPERATIONS - COMMENTED OUT FOR READ-ONLY MODE
+# These were the original write operations that are now disabled
+
+async def create_ticket_original(self, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
+    # Original create ticket implementation
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}{self.tickets_path}",
+                headers=self.headers,
+                json={"ticket": ticket_data}
+            )
+            
+            if response.status_code == 201:
+                data = response.json()
+                ticket = data.get("ticket", {})
+                logger.info(f"Created ticket {ticket.get('id')} in SyncroMSP")
+                return ticket
+            else:
+                logger.error(f"Failed to create ticket: {response.status_code} - {response.text}")
+                raise Exception(f"SyncroMSP API error: {response.status_code}")
+                
+    except Exception as e:
+        logger.error(f"Error creating SyncroMSP ticket: {str(e)}")
+        raise
+
+async def update_ticket_original(self, ticket_id: int, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
+    # Original update ticket implementation
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f"{self.base_url}{self.tickets_path}/{ticket_id}",
+                headers=self.headers,
+                json={"ticket": ticket_data}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                ticket = data.get("ticket", {})
+                logger.info(f"Updated ticket {ticket_id} in SyncroMSP")
+                return ticket
+            else:
+                logger.error(f"Failed to update ticket: {response.status_code} - {response.text}")
+                raise Exception(f"SyncroMSP API error: {response.status_code}")
+                
+    except Exception as e:
+        logger.error(f"Error updating SyncroMSP ticket: {str(e)}")
+        raise
+
+async def add_comment_original(self, ticket_id: int, comment: str, hidden: bool = False) -> Dict[str, Any]:
+    # Original add comment implementation
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}{self.tickets_path}/{ticket_id}{self.ticket_comments_path}",
+                headers=self.headers,
+                json={
+                    "comment": {
+                        "body": comment,
+                        "hidden": hidden
+                    }
+                }
+            )
+            
+            if response.status_code == 201:
+                data = response.json()
+                comment_obj = data.get("comment", {})
+                logger.info(f"Added comment to ticket {ticket_id} in SyncroMSP")
+                return comment_obj
+            else:
+                logger.error(f"Failed to add comment: {response.status_code} - {response.text}")
+                raise Exception(f"SyncroMSP API error: {response.status_code}")
+                
+    except Exception as e:
+        logger.error(f"Error adding SyncroMSP comment: {str(e)}")
+        raise
+"""
+
+# Create singleton instance
+syncro_service = SyncroMSPService() 

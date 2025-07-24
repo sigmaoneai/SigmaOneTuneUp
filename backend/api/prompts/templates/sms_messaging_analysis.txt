@@ -1,0 +1,12 @@
+Analyze the following conversation enclosed in `<messages>MESSAGES_PLACEHOLDER</messages>`, each messages has:
+    - `direction` (`INBOUND` for customer, `OUTBOUND` for agent)
+    - `body` (message content)
+    - `created_at` (timestamp)
+    - `status`
+
+And extract the following details:
+- summary: A concise sentence summarizing the conversation.
+- sentiment: Categorize as "positive", "neutral", or "negative".
+- potential_issues: Identify any notable concerns in a short sentence.
+- recommended_next_steps: Suggest a brief action based on the conversation.
+- issue_category: Categorize the issue.
