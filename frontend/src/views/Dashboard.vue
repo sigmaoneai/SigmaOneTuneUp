@@ -186,7 +186,7 @@ async function loadDashboardData() {
     recentCalls.value = callsResponse.data
 
     // Calculate success rate
-    const todayStatsResponse = await api.calls.getTodayStats()
+    const todayStatsResponse = await api.calls.getStats()
     callsSuccessRate.value = todayStatsResponse.data.success_rate || 0
 
   } catch (error) {

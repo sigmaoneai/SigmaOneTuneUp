@@ -5,7 +5,7 @@
       <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <div>
           <h3 class="text-lg font-semibold text-gray-900">Create Support Ticket</h3>
-          <p class="text-sm text-gray-500 mt-1">Create a new ticket in SyncroMSP (Mock Mode)</p>
+          <p class="text-sm text-gray-500 mt-1">Create tickets is disabled in read-only mode</p>
         </div>
         <button
           @click="close"
@@ -15,12 +15,12 @@
         </button>
       </div>
 
-      <!-- Mock Notice -->
-      <div class="px-6 py-3 bg-yellow-50 border-b border-yellow-200">
+      <!-- Read-Only Notice -->
+      <div class="px-6 py-3 bg-red-50 border-b border-red-200">
         <div class="flex items-center">
-          <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mr-2" />
-          <p class="text-sm text-yellow-800">
-            Mock Mode: This will create a simulated ticket for testing purposes only.
+          <ExclamationTriangleIcon class="w-5 h-5 text-red-600 mr-2" />
+          <p class="text-sm text-red-800">
+            Read-Only Mode: Ticket creation is disabled to prevent unintended modifications to SyncroMSP.
           </p>
         </div>
       </div>
@@ -271,28 +271,8 @@ const clearCustomer = () => {
 }
 
 const createTicket = async () => {
-  if (!canCreate.value) return
-
-  creating.value = true
-  try {
-    const ticketData = {
-      customer_id: selectedCustomer.value.id,
-      subject: form.value.subject.trim(),
-      description: form.value.description.trim(),
-      priority: form.value.urgent ? 'critical' : form.value.priority,
-      problem_type: form.value.problemType
-    }
-
-    const response = await api.syncro.createTicket(ticketData)
-    const createdTicket = response.data.ticket
-
-    toast.success(`Mock ticket #${createdTicket.id} created successfully`)
-    emit('ticket-created', createdTicket)
-  } catch (error) {
-    toast.error('Failed to create ticket')
-  } finally {
-    creating.value = false
-  }
+  // Disabled in read-only mode
+  toast.error('Ticket creation is disabled in read-only mode')
 }
 
 const close = () => {

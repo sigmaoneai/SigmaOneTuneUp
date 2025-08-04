@@ -1408,10 +1408,10 @@ const createOnboardingAgent = async () => {
       prompt: newAgentForm.value.prompt,
       focus_areas: newAgentForm.value.focusAreas,
       is_default: newAgentForm.value.setAsDefault,
-      type: 'onboarding'
+      user_id: userId.value
     }
     
-    const response = await api.agents.create(agentData)
+    const response = await api.agents.createOnboarding(agentData)
     
     // Add to local list
     onboardingAgents.value.push(response.data)
@@ -1468,7 +1468,7 @@ Be thorough, professional, and help create documentation that will improve their
 const setDefaultAgent = async (agent) => {
   try {
     // Update via API
-    await api.agents.update(agent.id, { is_default: true })
+    await api.agents.updateOnboarding(agent.id, { is_default: true })
     
     // Update local state
     onboardingAgents.value.forEach(a => {
@@ -1508,7 +1508,7 @@ const deleteAgent = async (agent) => {
   }
   
   try {
-    await api.agents.delete(agent.id)
+    await api.agents.deleteOnboarding(agent.id)
     
     // Remove from local list
     onboardingAgents.value = onboardingAgents.value.filter(a => a.id !== agent.id)
@@ -1535,18 +1535,9 @@ const loadOnboardingAgents = async () => {
     
   } catch (error) {
     console.error('Failed to load onboarding agents:', error)
-    // Use mock data for development
-    onboardingAgents.value = [
-      {
-        id: 1,
-        name: 'SOP Builder Assistant',
-        voice_id: '11labs-Adrian',
-        active: true,
-        is_default: true,
-        type: 'onboarding'
-      }
-    ]
-    currentOnboardingAgent.value = onboardingAgents.value[0]
+    toast.error('Failed to load onboarding agents. Please check your database connection.')
+    onboardingAgents.value = []
+    currentOnboardingAgent.value = null
   }
 }
 

@@ -184,6 +184,39 @@ The backend provides tool endpoints that RetellAI agents can call:
 
 These are configured in your RetellAI agent tool definitions.
 
+## SyncroMSP Integration Setup
+
+To connect to your SyncroMSP API, set the following environment variables:
+
+```bash
+# Required - Your SyncroMSP API credentials
+SYNCROMSP_API_KEY=your_syncromsp_api_key_here
+SYNCROMSP_BASE_URL=https://your-subdomain.syncromsp.com
+
+# Optional - Custom API paths (defaults shown)
+SYNCROMSP_TICKETS_PATH=/api/v1/tickets
+SYNCROMSP_CUSTOMERS_PATH=/api/v1/customers
+SYNCROMSP_TICKET_COMMENTS_PATH=/comment
+```
+
+### Getting Your SyncroMSP API Credentials
+
+1. Log into your SyncroMSP account
+2. Go to Admin → Global Settings → API
+3. Generate a new API key
+4. Set the `SYNCROMSP_API_KEY` environment variable to this key
+5. Set the `SYNCROMSP_BASE_URL` to your SyncroMSP subdomain URL
+
+### Read-Only Mode
+
+The integration runs in **read-only mode** by default, which means:
+- ✅ Fetch tickets, customers, and other data from SyncroMSP
+- ✅ Real-time sync of data from your SyncroMSP system
+- ❌ No modifications are made to your SyncroMSP data
+- ❌ Cannot create tickets or update data through the integration
+
+This ensures safe integration without risk of modifying your production SyncroMSP data.
+
 ## Monitoring
 
 Monitor your deployment using the dashboard endpoints:

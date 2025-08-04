@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime, timedelta
 from loguru import logger
 
-from ..database import get_db, PhoneCall, RetellAgent, PhoneNumber
+from ..database import get_db, PhoneCall, Call, CallEvent, RetellAgent, PhoneNumber
 from ..services.retell_service import retell_service
 from ..schemas import CallCreate, CallResponse, RetellWebhookEvent
 
@@ -102,16 +102,60 @@ async def list_calls(
 ):
     """List calls with filtering options"""
     try:
-        query = select(PhoneCall)
+        # Use the Call model which has proper RetellAI integration
+        query = select(Call)
         
         if direction:
-            query = query.where(PhoneCall.direction == direction)
+            query = query.where(Call.direction == direction)
         
-        query = query.order_by(desc(PhoneCall.created_at)).offset(skip).limit(limit)
+        query = query.order_by(desc(Call.created_at)).offset(skip).limit(limit)
         result = await db.execute(query)
         calls = result.scalars().all()
         
-        return calls
+        # Enrich calls with agent names for display
+        enriched_calls = []
+        for call in calls:
+            call_dict = {
+                "id": call.id,
+                "retell_call_id": call.retell_call_id,
+                "agent_id": call.agent_id,
+                "caller_agent_id": call.caller_agent_id,
+                "inbound_agent_id": call.inbound_agent_id,
+                "phone_number_id": call.phone_number_id,
+                "from_number": call.from_number,
+                "to_number": call.to_number,
+                "direction": call.direction,
+                "status": call.status,
+                "start_timestamp": call.start_timestamp,
+                "end_timestamp": call.end_timestamp,
+                "duration_ms": call.duration_ms,
+                "recording_url": call.recording_url,
+                "transcript": call.transcript,
+                "call_analysis": call.call_analysis,
+                "call_metadata": call.call_metadata,
+                "created_at": call.created_at,
+                "caller_agent_name": None,
+                "inbound_agent_name": None
+            }
+            
+            # Get agent names if available
+            if call.caller_agent_id:
+                caller_query = select(RetellAgent).where(RetellAgent.id == call.caller_agent_id)
+                caller_result = await db.execute(caller_query)
+                caller_agent = caller_result.scalar_one_or_none()
+                if caller_agent:
+                    call_dict["caller_agent_name"] = caller_agent.name
+            
+            if call.inbound_agent_id:
+                inbound_query = select(RetellAgent).where(RetellAgent.id == call.inbound_agent_id)
+                inbound_result = await db.execute(inbound_query)
+                inbound_agent = inbound_result.scalar_one_or_none()
+                if inbound_agent:
+                    call_dict["inbound_agent_name"] = inbound_agent.name
+            
+            enriched_calls.append(call_dict)
+        
+        return enriched_calls
         
     except Exception as e:
         logger.error(f"Error listing calls: {str(e)}")
@@ -121,7 +165,8 @@ async def list_calls(
 async def get_call(call_id: str, db: AsyncSession = Depends(get_db)):
     """Get a specific call"""
     try:
-        query = select(PhoneCall).where(PhoneCall.id == call_id)
+        # Use the Call model which has proper RetellAI integration
+        query = select(Call).where(Call.id == call_id)
         result = await db.execute(query)
         call = result.scalar_one_or_none()
         
@@ -143,20 +188,16 @@ async def create_call(
 ):
     """Create a new call record"""
     try:
-        # Generate a unique ID for the call
-        import uuid
-        call_id = str(uuid.uuid4())
+        # Handle agent-to-agent calls separately
+        if call_data.direction == "agent_to_agent" or getattr(call_data, 'call_type', None) == 'agent_to_agent':
+            return await create_agent_to_agent_call(call_data, db)
         
-        # Create call record in phone_calls table
-        db_call = PhoneCall(
-            id=call_id,
+        # Create call record in calls table (RetellAI integrated)
+        db_call = Call(
             direction=call_data.direction,
             from_number=call_data.from_number,
             to_number=call_data.to_number,
-            duration=0,  # Will be updated when call ends
-            transcript="",  # Will be populated during/after call
-            recording_url="",  # Will be populated after call
-            total_cost=0.0,  # Will be calculated after call
+            status="registered",  # Initial status
             created_at=datetime.utcnow()
         )
         
@@ -269,7 +310,7 @@ async def sync_call_with_retell(call_id: int, db: AsyncSession = Depends(get_db)
                 retell_call_data["end_timestamp"].replace('Z', '+00:00')
             )
         if retell_call_data.get("call_length_ms"):
-            update_data["duration_ms"] = retell_call_data["call_length_ms"]
+            update_data["duration_ms"] = str(retell_call_data["call_length_ms"])
         if retell_call_data.get("recording_url"):
             update_data["recording_url"] = retell_call_data["recording_url"]
         if retell_call_data.get("transcript"):
@@ -330,7 +371,7 @@ async def sync_all_calls_with_retell(db: AsyncSession = Depends(get_db)):
                 # Update existing call with RetellAI data
                 update_data = {}
                 if retell_call.get("call_length_ms"):
-                    update_data["duration_ms"] = retell_call["call_length_ms"]
+                    update_data["duration_ms"] = str(retell_call["call_length_ms"])
                 if retell_call.get("recording_url"):
                     update_data["recording_url"] = retell_call["recording_url"]
                 if retell_call.get("transcript"):

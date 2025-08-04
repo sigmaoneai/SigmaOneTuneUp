@@ -62,12 +62,12 @@
               </div>
             </div>
             
-            <!-- Mock Mode Notice -->
-            <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <!-- Read-Only Mode Notice -->
+            <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
               <div class="flex items-center">
-                <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mr-2" />
-                <p class="text-sm text-yellow-800">
-                  Currently running in mock mode for testing. Real SyncroMSP operations are disabled.
+                <CheckCircleIcon class="w-5 h-5 text-green-600 mr-2" />
+                <p class="text-sm text-green-800">
+                  SyncroMSP integration active in read-only mode. Create/update operations disabled for safety.
                 </p>
               </div>
             </div>
@@ -286,7 +286,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { formatDistanceToNow } from 'date-fns'
 import { useAppStore } from '@/stores/app'
-import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import { ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
 
 const toast = useToast()
 const appStore = useAppStore()
@@ -336,11 +336,11 @@ const getRetellStatusText = () => {
 }
 
 const getSyncroStatus = () => {
-  return 'bg-warning-400' // Always showing as mock mode
+          return 'bg-green-400' // Read-only mode active
 }
 
 const getSyncroStatusText = () => {
-  return 'Mock Mode (Testing)'
+          return 'Read-Only Mode'
 }
 
 const getBackendStatus = () => {

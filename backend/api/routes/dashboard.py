@@ -152,23 +152,25 @@ async def health_check():
             health_status["database"] = "unhealthy"
             health_status["details"]["database_error"] = str(e)
         
-        # RetellAI health - will fallback to mock data if API key not configured
+        # RetellAI health - requires real API key
         try:
-            await retell_service.list_agents()
+            agents = await retell_service.list_agents()
             health_status["retell_ai"] = "healthy"
+            health_status["details"]["retell_agents_count"] = len(agents)
         except Exception as e:
-            health_status["retell_ai"] = "mock_mode"  # Changed from unhealthy
-            health_status["details"]["retell_info"] = "Using mock data - API key not configured"
+            health_status["retell_ai"] = "unhealthy"
+            health_status["details"]["retell_error"] = str(e)
         
         # SyncroMSP health
         try:
-            await syncro_service.get_tickets(limit=1)
+            tickets = await syncro_service.get_tickets(limit=1)
             health_status["syncro_msp"] = "healthy"
+            health_status["details"]["syncro_tickets_accessible"] = len(tickets) > 0
         except Exception as e:
-            health_status["syncro_msp"] = "mock_mode"  # Using mock data as designed
-            health_status["details"]["syncro_info"] = "Using mock data for dry runs"
+            health_status["syncro_msp"] = "unhealthy"
+            health_status["details"]["syncro_error"] = str(e)
         
-        # Overall health - consider mock mode as acceptable
+        # Overall health
         unhealthy_services = [
             service for service, status in {
                 "database": health_status["database"],
@@ -180,8 +182,8 @@ async def health_check():
         
         if not unhealthy_services:
             health_status["overall"] = "healthy"
-        elif health_status["database"] == "healthy":
-            health_status["overall"] = "degraded"  # Database works, others in mock mode
+        elif len(unhealthy_services) == 1:
+            health_status["overall"] = "degraded"
         else:
             health_status["overall"] = "unhealthy"
         
@@ -260,3 +262,63 @@ async def get_system_overview(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error getting system overview: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 
+
+@router.get("/ngrok-status")
+async def get_ngrok_status():
+    """Get ngrok tunnel status via backend proxy to avoid CORS issues"""
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://localhost:4040/api/tunnels", timeout=5.0)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {"tunnels": []}
+    except Exception as e:
+        logger.warning(f"Could not fetch ngrok status: {str(e)}")
+        return {"tunnels": []}
+
+@router.post("/update-retellai-webhook")
+async def update_retellai_webhook():
+    """Automatically update RetellAI webhook URLs with current ngrok tunnel"""
+    try:
+        # Get current ngrok tunnel URL
+        import httpx
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://localhost:4040/api/tunnels", timeout=5.0)
+            if response.status_code != 200:
+                raise HTTPException(status_code=400, detail="Could not fetch ngrok tunnels")
+            
+            tunnels_data = response.json()
+            tunnels = tunnels_data.get('tunnels', [])
+            
+            # Find backend tunnel (port 8000)
+            backend_tunnel = None
+            for tunnel in tunnels:
+                if (tunnel.get('proto') == 'https' and 
+                    tunnel.get('config', {}).get('addr', '').endswith(':8000')):
+                    backend_tunnel = tunnel
+                    break
+            
+            if not backend_tunnel:
+                raise HTTPException(status_code=400, detail="No ngrok tunnel found for port 8000")
+            
+            ngrok_url = backend_tunnel['public_url']
+            webhook_url = f"{ngrok_url}/api/v1/retellai/agent-level-webhook"
+            
+            # Update all RetellAI agents with new webhook URL
+            from ..services.retell_service import retell_service
+            result = await retell_service.update_all_agent_webhooks(webhook_url)
+            
+            return {
+                "success": True,
+                "ngrok_url": ngrok_url,
+                "webhook_url": webhook_url,
+                "update_result": result
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating RetellAI webhook: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update webhook: {str(e)}") 

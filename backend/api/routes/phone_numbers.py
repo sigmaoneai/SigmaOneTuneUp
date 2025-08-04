@@ -154,7 +154,7 @@ async def assign_phone_number_to_agent(
 
 @router.post("/{phone_number_id}/unassign")
 async def unassign_phone_number(
-    phone_number_id: int,
+    phone_number_id: str,
     db: AsyncSession = Depends(get_db)
 ):
     """Unassign a phone number from its current agent"""
@@ -190,7 +190,7 @@ async def unassign_phone_number(
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/{phone_number_id}", response_model=PhoneNumberResponse)
-async def get_phone_number(phone_number_id: int, db: AsyncSession = Depends(get_db)):
+async def get_phone_number(phone_number_id: str, db: AsyncSession = Depends(get_db)):
     """Get a specific phone number"""
     try:
         query = select(PhoneNumber).where(PhoneNumber.id == phone_number_id)
@@ -221,4 +221,90 @@ async def get_retell_phone_number_details(retell_phone_id: str):
         
     except Exception as e:
         logger.error(f"Error getting RetellAI phone number details: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 
+
+@router.get("/stats/")
+async def get_phone_number_stats(db: AsyncSession = Depends(get_db)):
+    """Get phone number statistics from database"""
+    try:
+        from datetime import datetime, timedelta
+        from sqlalchemy import func, and_
+        from ..database import PhoneCall, Call
+        
+        # Today's date range
+        today = datetime.utcnow().date()
+        tomorrow = today + timedelta(days=1)
+        
+        # Total phone numbers
+        total_query = select(func.count(PhoneNumber.id))
+        total_result = await db.execute(total_query)
+        total_numbers = total_result.scalar() or 0
+        
+        # Active phone numbers
+        active_query = select(func.count(PhoneNumber.id)).where(PhoneNumber.is_active == True)
+        active_result = await db.execute(active_query)
+        active_numbers = active_result.scalar() or 0
+        
+        # Inbound calls today (from both PhoneCall and Call tables)
+        # PhoneCall table
+        inbound_phone_calls_query = select(func.count(PhoneCall.id)).where(
+            and_(
+                PhoneCall.direction == "inbound",
+                PhoneCall.created_at >= today,
+                PhoneCall.created_at < tomorrow
+            )
+        )
+        inbound_phone_calls_result = await db.execute(inbound_phone_calls_query)
+        inbound_phone_calls = inbound_phone_calls_result.scalar() or 0
+        
+        # Call table
+        inbound_calls_query = select(func.count(Call.id)).where(
+            and_(
+                Call.direction == "inbound", 
+                Call.created_at >= today,
+                Call.created_at < tomorrow
+            )
+        )
+        inbound_calls_result = await db.execute(inbound_calls_query)
+        inbound_calls = inbound_calls_result.scalar() or 0
+        
+        total_inbound = inbound_phone_calls + inbound_calls
+        
+        # Outbound calls today (from both PhoneCall and Call tables)
+        # PhoneCall table
+        outbound_phone_calls_query = select(func.count(PhoneCall.id)).where(
+            and_(
+                PhoneCall.direction == "outbound",
+                PhoneCall.created_at >= today,
+                PhoneCall.created_at < tomorrow
+            )
+        )
+        outbound_phone_calls_result = await db.execute(outbound_phone_calls_query)
+        outbound_phone_calls = outbound_phone_calls_result.scalar() or 0
+        
+        # Call table
+        outbound_calls_query = select(func.count(Call.id)).where(
+            and_(
+                Call.direction == "outbound",
+                Call.created_at >= today,
+                Call.created_at < tomorrow
+            )
+        )
+        outbound_calls_result = await db.execute(outbound_calls_query)
+        outbound_calls = outbound_calls_result.scalar() or 0
+        
+        total_outbound = outbound_phone_calls + outbound_calls
+        
+        logger.info(f"Phone number stats - Total: {total_numbers}, Active: {active_numbers}, Inbound: {total_inbound}, Outbound: {total_outbound}")
+        
+        return {
+            "total_numbers": total_numbers,
+            "active_numbers": active_numbers,
+            "inbound_calls_today": total_inbound,
+            "outbound_calls_today": total_outbound,
+            "date": today.isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting phone number stats: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 

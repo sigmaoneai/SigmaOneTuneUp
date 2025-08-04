@@ -10,6 +10,7 @@ from ..database import get_db, Agent, RetellAgent, PhoneNumber
 from ..services.retell_service import retell_service
 from ..schemas import AgentCreate, AgentUpdate, AgentResponse, LegacyAgentResponse, TestCallRequest
 from ..prompts.prompt_manager import prompt_manager
+import uuid
 
 router = APIRouter()
 
@@ -54,11 +55,150 @@ async def create_agent(
         logger.error(f"Error creating agent: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/onboarding", status_code=201)
+async def create_onboarding_agent(
+    agent_data: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new onboarding agent"""
+    try:
+        # Generate UUID for agent ID
+        agent_id = str(uuid.uuid4())
+        
+        # If setting as default, unset other default agents of the same type
+        if agent_data.get('is_default', False):
+            await db.execute(
+                update(Agent)
+                .where(Agent.type == 'onboarding')
+                .values(is_default=False)
+            )
+        
+        # Create agent in database
+        db_agent = Agent(
+            id=agent_id,
+            user_id=agent_data.get('user_id', 'system'),
+            name=agent_data['name'],
+            voice_id=uuid.uuid4(),  # Generate a UUID for voice_id
+            type='onboarding',
+            is_default=agent_data.get('is_default', False),
+            prompt=agent_data.get('prompt'),
+            focus_areas=agent_data.get('focus_areas', []),
+            created_at=datetime.utcnow(),
+            hidden=False
+        )
+        
+        db.add(db_agent)
+        await db.commit()
+        await db.refresh(db_agent)
+        
+        logger.info(f"Created onboarding agent {db_agent.id}")
+        
+        # Return the agent data
+        return {
+            'id': db_agent.id,
+            'name': db_agent.name,
+            'type': db_agent.type,
+            'is_default': db_agent.is_default,
+            'prompt': db_agent.prompt,
+            'focus_areas': db_agent.focus_areas,
+            'voice_id': agent_data.get('voice_id', '11labs-Adrian'),
+            'active': True,
+            'created_at': db_agent.created_at
+        }
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error creating onboarding agent: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/onboarding/{agent_id}")
+async def update_onboarding_agent(
+    agent_id: str,
+    agent_data: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update an onboarding agent"""
+    try:
+        # Find the agent
+        query = select(Agent).where(Agent.id == agent_id, Agent.type == 'onboarding')
+        result = await db.execute(query)
+        agent = result.scalar_one_or_none()
+        
+        if not agent:
+            raise HTTPException(status_code=404, detail="Onboarding agent not found")
+        
+        # If setting as default, unset other default agents of the same type
+        if agent_data.get('is_default', False) and not agent.is_default:
+            await db.execute(
+                update(Agent)
+                .where(Agent.type == 'onboarding', Agent.id != agent_id)
+                .values(is_default=False)
+            )
+        
+        # Update agent fields
+        agent.name = agent_data.get('name', agent.name)
+        agent.prompt = agent_data.get('prompt', agent.prompt)
+        agent.focus_areas = agent_data.get('focus_areas', agent.focus_areas)
+        agent.is_default = agent_data.get('is_default', agent.is_default)
+        
+        await db.commit()
+        await db.refresh(agent)
+        
+        logger.info(f"Updated onboarding agent {agent.id}")
+        
+        return {
+            'id': agent.id,
+            'name': agent.name,
+            'type': agent.type,
+            'is_default': agent.is_default,
+            'prompt': agent.prompt,
+            'focus_areas': agent.focus_areas,
+            'voice_id': agent_data.get('voice_id', '11labs-Adrian'),
+            'active': True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error updating onboarding agent: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/onboarding/{agent_id}")
+async def delete_onboarding_agent(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete an onboarding agent"""
+    try:
+        # Find the agent
+        query = select(Agent).where(Agent.id == agent_id, Agent.type == 'onboarding')
+        result = await db.execute(query)
+        agent = result.scalar_one_or_none()
+        
+        if not agent:
+            raise HTTPException(status_code=404, detail="Onboarding agent not found")
+        
+        await db.delete(agent)
+        await db.commit()
+        
+        logger.info(f"Deleted onboarding agent {agent_id}")
+        
+        return {"message": "Agent deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error deleting onboarding agent: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/", response_model=List[LegacyAgentResponse])
 async def list_agents(
     skip: int = 0,
     limit: int = 100,
     active_only: bool = True,
+    type: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """List all agents"""
@@ -66,6 +206,10 @@ async def list_agents(
         query = select(Agent)
         if active_only:
             query = query.where(Agent.hidden.is_(None) | (Agent.hidden == False))
+        
+        # Filter by type if provided
+        if type:
+            query = query.where(Agent.type == type)
         
         query = query.offset(skip).limit(limit)
         result = await db.execute(query)
@@ -89,7 +233,12 @@ async def list_agents(
                 'email': agent.email,
                 'ms_teams_app_id': agent.ms_teams_app_id,
                 'communication_channel': agent.communication_channel,
-                'is_active': agent.is_active  # This uses the computed property
+                'is_active': agent.is_active,  # This uses the computed property
+                # Add new fields for onboarding agents
+                'type': agent.type,
+                'is_default': agent.is_default,
+                'prompt': agent.prompt,
+                'focus_areas': agent.focus_areas
             }
             response_agents.append(agent_dict)
         

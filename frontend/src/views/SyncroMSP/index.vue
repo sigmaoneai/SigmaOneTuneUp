@@ -9,7 +9,7 @@
         </div>
         <div class="flex items-center space-x-3">
           <div class="flex items-center">
-            <div :class="connectionStatus" class="w-3 h-3 rounded-full mr-2"></div>
+            <div :class="connectionStatusClass" class="w-3 h-3 rounded-full mr-2"></div>
             <span class="text-sm text-gray-600">{{ connectionText }}</span>
           </div>
           <button
@@ -26,14 +26,14 @@
       </div>
     </div>
 
-    <!-- Mock Data Notice -->
-    <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+    <!-- Read-Only Mode Notice -->
+    <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
       <div class="flex">
-        <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mt-0.5 mr-3" />
+        <ExclamationTriangleIcon class="w-5 h-5 text-blue-600 mt-0.5 mr-3" />
         <div>
-          <h3 class="text-sm font-medium text-yellow-800">Mock Data Mode</h3>
-          <p class="text-sm text-yellow-700 mt-1">
-            Currently running in dry-run mode with mock data. Real SyncroMSP operations are disabled for testing.
+          <h3 class="text-sm font-medium text-blue-800">Read-Only Mode</h3>
+          <p class="text-sm text-blue-700 mt-1">
+            Connected to SyncroMSP API in read-only mode. Data is fetched live but no modifications will be made to your SyncroMSP system.
           </p>
         </div>
       </div>
@@ -148,17 +148,22 @@ const showCreateModal = ref(false)
 const tickets = ref([])
 const customers = ref([])
 const lastSyncTime = ref(null)
-
-// Mock connection status (always connected for demo)
-const connected = ref(true)
+const connectionStatus = ref({
+  connected: false,
+  api_configured: false,
+  read_only_mode: true
+})
 
 // Computed properties
-const connectionStatus = computed(() => {
-  return connected.value ? 'bg-success-400' : 'bg-danger-400'
+const connectionStatusClass = computed(() => {
+  return connectionStatus.value.connected ? 'bg-success-400' : 'bg-danger-400'
 })
 
 const connectionText = computed(() => {
-  return connected.value ? 'Connected' : 'Disconnected'
+  if (!connectionStatus.value.api_configured) {
+    return 'Not Configured'
+  }
+  return connectionStatus.value.connected ? 'Connected' : 'Disconnected'
 })
 
 const stats = computed(() => {
@@ -177,6 +182,20 @@ const stats = computed(() => {
 })
 
 // Methods
+const checkConnectionStatus = async () => {
+  try {
+    const response = await api.syncro.getStatus()
+    connectionStatus.value = response.data
+  } catch (error) {
+    connectionStatus.value = {
+      connected: false,
+      api_configured: false,
+      read_only_mode: true,
+      error: 'Failed to check connection status'
+    }
+  }
+}
+
 const loadTickets = async () => {
   try {
     loading.value = true
@@ -204,6 +223,14 @@ const loadCustomers = async () => {
 const syncData = async () => {
   syncing.value = true
   try {
+    // Check connection status first
+    await checkConnectionStatus()
+    
+    if (!connectionStatus.value.connected) {
+      toast.error('Cannot sync: SyncroMSP API not connected')
+      return
+    }
+    
     // Sync tickets
     const ticketSync = await api.syncro.syncTickets()
     
@@ -214,7 +241,7 @@ const syncData = async () => {
     
     const syncResult = ticketSync.data
     toast.success(
-      `Sync completed: ${syncResult.new_count} new, ${syncResult.updated_count} updated tickets`
+      `Sync completed: ${syncResult.new_count} tickets fetched from SyncroMSP API (read-only mode)`
     )
   } catch (error) {
     toast.error('Failed to sync data')
@@ -234,13 +261,17 @@ const handleCustomerSelected = (customer) => {
 }
 
 const handleTicketCreated = (ticket) => {
-  toast.success(`Mock ticket created: ${ticket.subject}`)
+  // Ticket creation is disabled in read-only mode
+  toast.error('Ticket creation is disabled in read-only mode')
   showCreateModal.value = false
-  loadTickets()
 }
 
 // Initialize
 onMounted(async () => {
-  await Promise.all([loadTickets(), loadCustomers()])
+  await Promise.all([
+    checkConnectionStatus(),
+    loadTickets(), 
+    loadCustomers()
+  ])
 })
 </script> 

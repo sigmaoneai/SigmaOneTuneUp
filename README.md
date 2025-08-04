@@ -2,9 +2,22 @@
 
 A comprehensive Vue.js frontend and FastAPI backend application for managing AI-powered customer service interactions, integrating with RetellAI and SyncroMSP.
 
+## 🎯 **Live E2E Testing & Transcript Streaming**
+
+**Perfect for testing RetellAI voice agents with real-time visibility:**
+- 🎙️ **Live transcript streaming** from RetellAI calls
+- 📊 **Real-time service monitoring** (backend, ngrok, frontend status)
+- 🔧 **One-click setup** for new team members  
+- 🌐 **WebSocket integration** for instant updates
+- 🎛️ **Service management UI** with start/stop controls
+- 🔗 **Automatic webhook configuration** for RetellAI agents
+
 ## Features
 
 ### Frontend (Vue.js)
+- **🎯 E2E Agent Tuning**: Live transcript streaming, service monitoring, and real-time testing
+- **📊 Service Manager**: Real-time status of backend, ngrok, and frontend services  
+- **🎙️ Live Transcript**: WebSocket-powered real-time call transcription from RetellAI
 - **Dashboard**: Real-time system overview with health monitoring and statistics
 - **Agents Management**: RetellAI agent configuration and monitoring
 - **Phone Numbers**: Phone number management and call routing
@@ -14,6 +27,9 @@ A comprehensive Vue.js frontend and FastAPI backend application for managing AI-
 - **Settings**: System configuration and API status monitoring
 
 ### Backend (FastAPI)
+- **🎙️ Live Transcript Streaming**: WebSocket endpoints for real-time RetellAI call transcription
+- **🔗 RetellAI Webhook Handler**: Processes live call events (speech, tool calls, call status)
+- **📊 Service Health API**: Real-time monitoring of backend, database, and external services
 - **RESTful API**: Comprehensive endpoints for all frontend features
 - **RetellAI Integration**: Agent management and call handling
 - **SyncroMSP Integration**: Mock ticket and customer management
@@ -47,11 +63,50 @@ A comprehensive Vue.js frontend and FastAPI backend application for managing AI-
 
 ## Setup Instructions
 
+### 🚀 **Super Quick Setup (Recommended for New Team Members)**
+
+**One command setup:**
+```bash
+git clone <this-repo>
+cd SigmaOneTuneUp
+./setup_new_teammate.sh
+```
+
+The script will:
+- ✅ Check prerequisites (Python, Node.js, ngrok)
+- ✅ Create personalized `.env` files with your ngrok URL
+- ✅ Install all dependencies (backend + frontend)  
+- ✅ Generate your webhook URLs for RetellAI
+- ✅ Show you exactly what commands to run next
+
+**Then start development (3 terminals):**
+```bash
+# Terminal 1: Backend
+cd backend && source venv/bin/activate && python run.py
+
+# Terminal 2: Your ngrok tunnel
+ngrok http 8000 --subdomain=YOUR-NAME-sigmaonetune
+
+# Terminal 3: Frontend
+cd frontend && npm run dev
+```
+
+**Access your E2E testing:**
+- 🎯 **Frontend**: http://localhost:3000 → E2E Agent Tuning
+- 📊 **Service Manager**: Real-time status monitoring
+- 🔗 **Your Backend**: https://YOUR-NAME-sigmaonetune.ngrok.io
+- 📖 **API Docs**: https://YOUR-NAME-sigmaonetune.ngrok.io/docs
+
+---
+
+### 📋 **Manual Setup (If You Prefer)**
+
 ### Prerequisites
 - Node.js 18+ and npm
 - Python 3.12+
 - PostgreSQL (optional, can use SQLite for development)
 - Redis (optional)
+- **ngrok** (for webhook tunneling)
 
 ### Backend Setup
 

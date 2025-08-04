@@ -69,6 +69,12 @@ class Agent(Base):
     ms_teams_app_id = Column(String, nullable=True)
     communication_channel = Column(String, nullable=True)
     
+    # Extended fields for onboarding agents
+    type = Column(String, nullable=True)  # 'onboarding', 'support', etc.
+    is_default = Column(Boolean, default=False)  # Default agent for its type
+    prompt = Column(Text, nullable=True)  # System prompt for onboarding agents
+    focus_areas = Column(JSON, nullable=True)  # Focus areas for onboarding
+    
     # Add computed property for compatibility
     @property
     def is_active(self):
@@ -128,10 +134,15 @@ class PhoneNumber(Base):
     agent_id = Column(String, nullable=True)  # String to match existing schema
     phone_number_type = Column(Integer, nullable=False)
     
-    # Add computed property for compatibility with existing code
-    @property
-    def is_active(self):
-        return True  # For now, assume all phone numbers are active
+    # RetellAI integration fields
+    retell_phone_number_id = Column(String, nullable=True, unique=True)
+    area_code = Column(String, nullable=True)
+    inbound_agent_id = Column(String, nullable=True)  # RetellAI agent ID
+    outbound_agent_id = Column(String, nullable=True)  # RetellAI agent ID
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Relationships
+    calls = relationship("Call", foreign_keys="Call.phone_number_id", back_populates="phone_number")
 
 class PhoneCall(Base):
     __tablename__ = "phone_calls"

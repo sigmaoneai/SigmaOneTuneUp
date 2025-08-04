@@ -9,11 +9,12 @@ class RetellAIService:
     def __init__(self):
         self.api_key = os.getenv("RETELLAI_API_KEY")
         self.base_url = "https://api.retellai.com"
+        self.base_url_v2 = "https://api.retellai.com/v2"
         self.webhook_url = os.getenv("RETELLAI_AGENT_WEBHOOK_URL")
         self.agent_name_prefix = os.getenv("RETELLAI_AGENT_NAME_PREFIX", "SigmaOne - User <user_id> - Agent '<agent_name>'")
         
         if not self.api_key:
-            raise ValueError("RETELLAI_API_KEY not found in environment variables")
+            raise ValueError("RETELLAI_API_KEY not found in environment variables. Real API key is required.")
             
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -67,10 +68,6 @@ class RetellAIService:
     async def list_agents(self) -> List[Dict[str, Any]]:
         """List all RetellAI agents"""
         try:
-            if not self.api_key:
-                logger.warning("RetellAI API key not configured, returning mock data")
-                return self._get_mock_agents()
-                
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
                     f"{self.base_url}/list-agents",
@@ -81,13 +78,11 @@ class RetellAIService:
                     return response.json()
                 else:
                     logger.error(f"Failed to list agents: {response.status_code} - {response.text}")
-                    logger.info("Falling back to mock data")
-                    return self._get_mock_agents()
+                    raise Exception(f"RetellAI API error: {response.status_code}")
                     
         except Exception as e:
             logger.error(f"Error listing RetellAI agents: {str(e)}")
-            logger.info("Falling back to mock data")
-            return self._get_mock_agents()
+            raise
     
     async def get_agent(self, agent_id: str) -> Dict[str, Any]:
         """Get a specific RetellAI agent"""
@@ -129,34 +124,183 @@ class RetellAIService:
         except Exception as e:
             logger.error(f"Error updating RetellAI agent: {str(e)}")
             raise
-    
-    async def delete_agent(self, agent_id: str) -> bool:
-        """Delete a RetellAI agent"""
+
+    async def update_all_agent_webhooks(self, new_webhook_url: str) -> Dict[str, Any]:
+        """Update webhook URL for all RetellAI agents"""
+        try:
+            # First, get all agents
+            agents_response = await self.list_agents()
+            agents = agents_response.get('data', [])
+            
+            if not agents:
+                return {"success": True, "message": "No agents found", "updated_count": 0}
+            
+            updated_count = 0
+            failed_updates = []
+            
+            # Update each agent's webhook URL
+            for agent in agents:
+                agent_id = agent.get('agent_id')
+                if not agent_id:
+                    continue
+                    
+                try:
+                    await self.update_agent(agent_id, {
+                        "agent_level_webhook_url": new_webhook_url
+                    })
+                    updated_count += 1
+                    logger.info(f"Updated webhook for agent {agent_id}")
+                except Exception as e:
+                    failed_updates.append({"agent_id": agent_id, "error": str(e)})
+                    logger.error(f"Failed to update webhook for agent {agent_id}: {str(e)}")
+            
+            result = {
+                "success": True,
+                "message": f"Updated {updated_count} agents successfully",
+                "updated_count": updated_count,
+                "total_agents": len(agents),
+                "new_webhook_url": new_webhook_url
+            }
+            
+            if failed_updates:
+                result["failed_updates"] = failed_updates
+                result["message"] += f", {len(failed_updates)} failed"
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error bulk updating agent webhooks: {str(e)}")
+            raise
+
+    async def create_conversation_flow(self, flow_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new RetellAI conversation flow"""
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.delete(
-                    f"{self.base_url}/delete-agent/{agent_id}",
+                response = await client.post(
+                    f"{self.base_url}/create-conversation-flow",
+                    headers=self.headers,
+                    json=flow_data
+                )
+                
+                if response.status_code == 201:
+                    result = response.json()
+                    logger.info(f"Successfully created conversation flow: {result.get('conversation_flow_id')}")
+                    return result
+                else:
+                    logger.error(f"Failed to create conversation flow: {response.status_code} - {response.text}")
+                    raise Exception(f"RetellAI API error: {response.status_code}")
+                    
+        except Exception as e:
+            logger.error(f"Error creating conversation flow: {str(e)}")
+            raise
+
+    async def list_conversation_flows(self) -> Dict[str, Any]:
+        """List all conversation flows"""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/list-conversation-flows",
                     headers=self.headers
                 )
                 
                 if response.status_code == 200:
-                    logger.info(f"Successfully deleted RetellAI agent: {agent_id}")
-                    return True
+                    result = response.json()
+                    logger.info(f"Successfully retrieved {len(result.get('data', []))} conversation flows")
+                    return result
                 else:
-                    logger.error(f"Failed to delete agent: {response.status_code} - {response.text}")
+                    logger.error(f"Failed to list conversation flows: {response.status_code} - {response.text}")
                     raise Exception(f"RetellAI API error: {response.status_code}")
                     
         except Exception as e:
-            logger.error(f"Error deleting RetellAI agent: {str(e)}")
+            logger.error(f"Error listing conversation flows: {str(e)}")
             raise
+
+    async def get_conversation_flow(self, flow_id: str) -> Dict[str, Any]:
+        """Get a specific conversation flow"""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/get-conversation-flow/{flow_id}",
+                    headers=self.headers
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    logger.info(f"Successfully retrieved conversation flow: {flow_id}")
+                    return result
+                else:
+                    logger.error(f"Failed to get conversation flow: {response.status_code} - {response.text}")
+                    raise Exception(f"RetellAI API error: {response.status_code}")
+                    
+        except Exception as e:
+            logger.error(f"Error getting conversation flow: {str(e)}")
+            raise
+
+    async def update_conversation_flow(self, flow_id: str, flow_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a conversation flow"""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.patch(
+                    f"{self.base_url}/update-conversation-flow/{flow_id}",
+                    headers=self.headers,
+                    json=flow_data
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    logger.info(f"Successfully updated conversation flow: {flow_id}")
+                    return result
+                else:
+                    logger.error(f"Failed to update conversation flow: {response.status_code} - {response.text}")
+                    raise Exception(f"RetellAI API error: {response.status_code}")
+                    
+        except Exception as e:
+            logger.error(f"Error updating conversation flow: {str(e)}")
+            raise
+
+    async def delete_conversation_flow(self, flow_id: str) -> bool:
+        """Delete a conversation flow"""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.delete(
+                    f"{self.base_url}/delete-conversation-flow/{flow_id}",
+                    headers=self.headers
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Successfully deleted conversation flow: {flow_id}")
+                    return True
+                else:
+                    logger.error(f"Failed to delete conversation flow: {response.status_code} - {response.text}")
+                    raise Exception(f"RetellAI API error: {response.status_code}")
+                    
+        except Exception as e:
+            logger.error(f"Error deleting conversation flow: {str(e)}")
+            raise
+    
+    # async def delete_agent(self, agent_id: str) -> bool:
+    #     """Delete a RetellAI agent"""
+    #     try:
+    #         async with httpx.AsyncClient() as client:
+    #             response = await client.delete(
+    #                 f"{self.base_url}/delete-agent/{agent_id}",
+    #                 headers=self.headers
+    #             )
+    #             
+    #             if response.status_code == 200:
+    #                 logger.info(f"Successfully deleted RetellAI agent: {agent_id}")
+    #                 return True
+    #             else:
+    #                 logger.error(f"Failed to delete agent: {response.status_code} - {response.text}")
+    #                 raise Exception(f"RetellAI API error: {response.status_code}")
+    #                 
+    #     except Exception as e:
+    #         logger.error(f"Error deleting RetellAI agent: {str(e)}")
+    #         raise
     
     async def get_phone_numbers(self) -> List[Dict[str, Any]]:
         """List all phone numbers"""
         try:
-            if not self.api_key:
-                logger.warning("RetellAI API key not configured, returning mock data")
-                return self._get_mock_phone_numbers()
-                
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
                     f"{self.base_url}/list-phone-numbers",
@@ -167,13 +311,11 @@ class RetellAIService:
                     return response.json()
                 else:
                     logger.error(f"Failed to list phone numbers: {response.status_code} - {response.text}")
-                    logger.info("Falling back to mock data")
-                    return self._get_mock_phone_numbers()
+                    raise Exception(f"RetellAI API error: {response.status_code}")
                     
         except Exception as e:
             logger.error(f"Error listing phone numbers: {str(e)}")
-            logger.info("Falling back to mock data")
-            return self._get_mock_phone_numbers()
+            raise
     
     async def get_phone_number(self, phone_number_id: str) -> Dict[str, Any]:
         """Get a specific phone number"""
@@ -232,7 +374,7 @@ class RetellAIService:
                 }
                 
                 response = await client.post(
-                    f"{self.base_url}/create-phone-call",
+                    f"{self.base_url_v2}/create-phone-call",
                     headers=self.headers,
                     json=call_config
                 )
@@ -267,7 +409,7 @@ class RetellAIService:
                 }
                 
                 response = await client.post(
-                    f"{self.base_url}/create-phone-call",
+                    f"{self.base_url_v2}/create-phone-call",
                     headers=self.headers,
                     json=call_config
                 )
@@ -289,7 +431,7 @@ class RetellAIService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/get-call/{call_id}",
+                    f"{self.base_url_v2}/get-call/{call_id}",
                     headers=self.headers
                 )
                 
@@ -303,161 +445,30 @@ class RetellAIService:
             logger.error(f"Error getting call: {str(e)}")
             raise
     
-    async def list_calls(self, limit: int = 100, sort_order: str = "desc") -> List[Dict[str, Any]]:
+    async def list_calls(self, limit: int = 100, sort_order: str = "descending") -> List[Dict[str, Any]]:
         """List calls"""
         try:
-            if not self.api_key:
-                logger.warning("RetellAI API key not configured, returning mock data")
-                return self._get_mock_calls(limit)
-                
             async with httpx.AsyncClient(timeout=10.0) as client:
-                params = {
-                    "limit": limit,
-                    "sort_order": sort_order
-                }
-                
-                response = await client.get(
-                    f"{self.base_url}/list-calls",
+                response = await client.post(
+                    f"{self.base_url_v2}/list-calls",
                     headers=self.headers,
-                    params=params
+                    json={
+                        "limit": limit,
+                        "sort_order": sort_order
+                    }
                 )
                 
                 if response.status_code == 200:
                     return response.json()
                 else:
                     logger.error(f"Failed to list calls: {response.status_code} - {response.text}")
-                    logger.info("Falling back to mock data")
-                    return self._get_mock_calls(limit)
+                    raise Exception(f"RetellAI API error: {response.status_code}")
                     
         except Exception as e:
             logger.error(f"Error listing calls: {str(e)}")
-            logger.info("Falling back to mock data")
-            return self._get_mock_calls(limit)
+            raise
 
-    def _get_mock_agents(self) -> List[Dict[str, Any]]:
-        """Return mock agent data for development/fallback"""
-        from datetime import datetime
-        return [
-            {
-                "agent_id": "mock_agent_1",
-                "agent_name": "Customer Service Agent",
-                "voice_id": "11labs-Adrian",
-                "created_at": datetime.utcnow().isoformat() + "Z",
-                "last_modification_timestamp": datetime.utcnow().isoformat() + "Z",
-                "llm_websocket_url": "wss://example.com/llm",
-                "general_prompt": "You are a helpful customer service agent.",
-                "general_tools": [],
-                "mock_data": True
-            },
-            {
-                "agent_id": "mock_agent_2", 
-                "agent_name": "Sales Support Agent",
-                "voice_id": "11labs-Rachel",
-                "created_at": datetime.utcnow().isoformat() + "Z",
-                "last_modification_timestamp": datetime.utcnow().isoformat() + "Z",
-                "llm_websocket_url": "wss://example.com/llm",
-                "general_prompt": "You are a helpful sales support agent.",
-                "general_tools": [],
-                "mock_data": True
-            },
-            {
-                "agent_id": "mock_agent_3",
-                "agent_name": "Technical Support Agent", 
-                "voice_id": "11labs-Domi",
-                "created_at": datetime.utcnow().isoformat() + "Z",
-                "last_modification_timestamp": datetime.utcnow().isoformat() + "Z",
-                "llm_websocket_url": "wss://example.com/llm",
-                "general_prompt": "You are a helpful technical support agent.",
-                "general_tools": [],
-                "mock_data": True
-            }
-        ]
-    
-    def _get_mock_phone_numbers(self) -> List[Dict[str, Any]]:
-        """Return mock phone number data for development/fallback"""
-        from datetime import datetime
-        return [
-            {
-                "phone_number_id": "mock_phone_1",
-                "phone_number": "+1 (555) 123-4567",
-                "area_code": "555",
-                "country": "US",
-                "region": "California",
-                "inbound_agent_id": "mock_agent_1",
-                "outbound_agent_id": "mock_agent_1",
-                "capabilities": ["inbound", "outbound"],
-                "monthly_cost": 2.99,
-                "calls_today": 15,
-                "status": "active",
-                "created_at": datetime.utcnow().isoformat() + "Z",
-                "mock_data": True
-            },
-            {
-                "phone_number_id": "mock_phone_2",
-                "phone_number": "+1 (555) 987-6543",
-                "area_code": "555", 
-                "country": "US",
-                "region": "New York",
-                "inbound_agent_id": "mock_agent_2",
-                "outbound_agent_id": "mock_agent_2",
-                "capabilities": ["inbound", "outbound"],
-                "monthly_cost": 2.99,
-                "calls_today": 8,
-                "status": "active",
-                "created_at": datetime.utcnow().isoformat() + "Z",
-                "mock_data": True
-            },
-            {
-                "phone_number_id": "mock_phone_3",
-                "phone_number": "+1 (555) 456-7890",
-                "area_code": "555",
-                "country": "US", 
-                "region": "Texas",
-                "inbound_agent_id": "mock_agent_3",
-                "outbound_agent_id": "mock_agent_3",
-                "capabilities": ["inbound"],
-                "monthly_cost": 1.99,
-                "calls_today": 22,
-                "status": "active",
-                "created_at": datetime.utcnow().isoformat() + "Z",
-                "mock_data": True
-            }
-        ]
-    
-    def _get_mock_calls(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """Return mock call data for development/fallback"""
-        from datetime import datetime, timedelta
-        import random
-        
-        calls = []
-        statuses = ["completed", "in_progress", "failed"]
-        directions = ["inbound", "outbound"]
-        agents = ["mock_agent_1", "mock_agent_2", "mock_agent_3"]
-        phone_numbers = ["+1 (555) 123-4567", "+1 (555) 987-6543", "+1 (555) 456-7890"]
-        
-        for i in range(min(limit, 25)):  # Generate up to 25 mock calls
-            start_time = datetime.utcnow() - timedelta(hours=random.randint(1, 168))  # Last week
-            duration = random.randint(30, 600)  # 30 seconds to 10 minutes
-            
-            calls.append({
-                "call_id": f"mock_call_{i+1}",
-                "agent_id": random.choice(agents),
-                "phone_number": random.choice(phone_numbers),
-                "from_number": random.choice(phone_numbers),
-                "to_number": f"+1 (555) {random.randint(100, 999)}-{random.randint(1000, 9999)}",
-                "direction": random.choice(directions),
-                "status": random.choice(statuses),
-                "start_timestamp": start_time.isoformat() + "Z",
-                "end_timestamp": (start_time + timedelta(seconds=duration)).isoformat() + "Z",
-                "call_length_ms": duration * 1000,
-                "recording_url": f"https://example.com/recording_{i+1}.mp3" if random.choice([True, False]) else None,
-                "transcript": f"Mock call transcript for call {i+1}...",
-                "agent_name": f"Agent {random.randint(1, 3)}",
-                "created_at": start_time.isoformat() + "Z",
-                "mock_data": True
-            })
-        
-        return calls
+
 
 # Create singleton instance
 retell_service = RetellAIService() 

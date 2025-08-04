@@ -314,12 +314,12 @@ const tabs = computed(() => [
 const loadTemplates = async () => {
   loading.value = true
   try {
-    const params = new URLSearchParams()
-    if (templateFilters.value.search) params.append('search', templateFilters.value.search)
-    if (templateFilters.value.category) params.append('category', templateFilters.value.category)
-    if (templateFilters.value.is_active !== '') params.append('is_active', templateFilters.value.is_active)
+    const params = {}
+    if (templateFilters.value.search) params.search = templateFilters.value.search
+    if (templateFilters.value.category) params.category = templateFilters.value.category
+    if (templateFilters.value.is_active !== '') params.is_active = templateFilters.value.is_active
     
-    const response = await api.get(`/prompts/templates?${params.toString()}`)
+    const response = await api.prompts.list(params)
     templates.value = response.data
   } catch (error) {
     console.error('Error loading templates:', error)
@@ -331,7 +331,7 @@ const loadTemplates = async () => {
 
 const loadCategories = async () => {
   try {
-    const response = await api.get('/prompts/categories')
+    const response = await api.prompts.listCategories()
     categories.value = response.data.categories
   } catch (error) {
     console.error('Error loading categories:', error)
@@ -341,7 +341,7 @@ const loadCategories = async () => {
 const importTemplates = async () => {
   importing.value = true
   try {
-    const response = await api.post('/prompts/templates/import-from-files')
+    const response = await api.prompts.importFromFiles()
     toast.success(`Successfully imported ${response.data.imported_count} templates`)
     if (response.data.errors && response.data.errors.length > 0) {
       console.warn('Import errors:', response.data.errors)
@@ -363,7 +363,7 @@ const deleteTemplate = async (template) => {
   if (!confirm(`Are you sure you want to delete the template "${template.title}"?`)) return
   
   try {
-    await api.delete(`/prompts/templates/${template.id}`)
+    await api.prompts.delete(template.id)
     toast.success('Template deleted successfully')
     await loadTemplates()
   } catch (error) {
@@ -391,7 +391,7 @@ const deleteScenario = async (scenario) => {
   if (!confirm(`Are you sure you want to delete the scenario "${scenario.name}"?`)) return
   
   try {
-    await api.delete(`/prompts/scenarios/${scenario.id}`)
+    await api.prompts.deleteScenario(scenario.id)
     toast.success('Scenario deleted successfully')
     // Refresh scenarios list
   } catch (error) {

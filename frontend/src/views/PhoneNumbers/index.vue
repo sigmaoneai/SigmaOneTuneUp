@@ -75,16 +75,26 @@
             </select>
           </div>
 
-          <button
-            @click="refreshNumbers"
-            :disabled="loading"
-            class="btn-primary btn-sm"
-          >
-            <ArrowPathIcon 
-              :class="['w-4 h-4 mr-2', loading ? 'animate-spin' : '']" 
-            />
-            Refresh
-          </button>
+          <div class="flex space-x-2">
+            <button
+              @click="syncFromRetell"
+              :disabled="loading"
+              class="btn-secondary btn-sm"
+            >
+              <ArrowPathIcon class="w-4 h-4 mr-2" />
+              Sync from Retell
+            </button>
+            <button
+              @click="refreshNumbers"
+              :disabled="loading"
+              class="btn-primary btn-sm"
+            >
+              <ArrowPathIcon 
+                :class="['w-4 h-4 mr-2', loading ? 'animate-spin' : '']" 
+              />
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -216,10 +226,10 @@ const statusFilter = ref('')
 const countryFilter = ref('')
 
 const stats = ref({
-  totalNumbers: 3,
-  activeNumbers: 3,
-  inboundCalls: 42,
-  outboundCalls: 28
+  totalNumbers: 0,
+  activeNumbers: 0,
+  inboundCalls: 0,
+  outboundCalls: 0
 })
 
 // Computed properties
@@ -246,13 +256,33 @@ const filteredNumbers = computed(() => {
 })
 
 // Methods
+const loadStats = async () => {
+  try {
+    const response = await api.phoneNumbers.getStats()
+    stats.value = {
+      totalNumbers: response.data.total_numbers || 0,
+      activeNumbers: response.data.active_numbers || 0,
+      inboundCalls: response.data.inbound_calls_today || 0,
+      outboundCalls: response.data.outbound_calls_today || 0
+    }
+  } catch (error) {
+    console.error('Failed to load phone number stats:', error)
+    toast.error('Failed to load phone number statistics: ' + (error.response?.data?.detail || error.message))
+  }
+}
+
 const loadPhoneNumbers = async () => {
   loading.value = true
   try {
-    const response = await api.retell.listPhoneNumbers()
-    phoneNumbers.value = response.data.phone_numbers || []
+    // Load both phone numbers and stats
+    const [numbersResponse] = await Promise.all([
+      api.phoneNumbers.list(),
+      loadStats()
+    ])
+    phoneNumbers.value = numbersResponse.data || []
   } catch (error) {
-    toast.error('Failed to load phone numbers')
+    console.error('Failed to load phone numbers:', error)
+    toast.error('Failed to load phone numbers: ' + (error.response?.data?.detail || error.message))
   } finally {
     loading.value = false
   }
@@ -260,6 +290,17 @@ const loadPhoneNumbers = async () => {
 
 const refreshNumbers = () => {
   loadPhoneNumbers()
+}
+
+const syncFromRetell = async () => {
+  try {
+    toast.info('Syncing phone numbers from Retell.ai...')
+    await api.phoneNumbers.syncFromRetell()
+    toast.success('Phone numbers synced successfully')
+    loadPhoneNumbers() // Refresh the list
+  } catch (error) {
+    toast.error('Failed to sync phone numbers from Retell.ai')
+  }
 }
 
 const viewNumber = (number) => {

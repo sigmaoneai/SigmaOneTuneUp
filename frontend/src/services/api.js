@@ -75,13 +75,18 @@ const api = {
     syncWithRetell: (id) => apiClient.get(`/agents/${id}/sync-retell/`),
     syncAllFromRetell: () => apiClient.get('/agents/sync-all-from-retell/'),
     savePrompt: (id, promptName) => apiClient.post(`/agents/${id}/save-prompt/`, { prompt_name: promptName }),
-    getPromptSuggestions: (id) => apiClient.get(`/agents/${id}/prompt-suggestions/`)
+    getPromptSuggestions: (id) => apiClient.get(`/agents/${id}/prompt-suggestions/`),
+    // Onboarding agent specific endpoints
+    createOnboarding: (data) => apiClient.post('/agents/onboarding', data),
+    updateOnboarding: (id, data) => apiClient.put(`/agents/onboarding/${id}`, data),
+    deleteOnboarding: (id) => apiClient.delete(`/agents/onboarding/${id}`)
   },
 
   // Phone Numbers
   phoneNumbers: {
     list: (params = {}) => apiClient.get('/phone-numbers/', { params }),
     get: (id) => apiClient.get(`/phone-numbers/${id}/`),
+    getStats: () => apiClient.get('/phone-numbers/stats/'),
     syncFromRetell: () => apiClient.get('/phone-numbers/sync-from-retell/'),
     assign: (data) => apiClient.post('/phone-numbers/assign/', data),
     unassign: (id) => apiClient.post(`/phone-numbers/${id}/unassign/`),
@@ -100,20 +105,36 @@ const api = {
 
   // Prompts
   prompts: {
-    list: () => apiClient.get('/prompts/'),
-    get: (name) => apiClient.get(`/prompts/${name}/`),
-    create: (name, data) => apiClient.post(`/prompts/${name}/`, data),
-    update: (name, data) => apiClient.put(`/prompts/${name}/`, data),
-    delete: (name) => apiClient.delete(`/prompts/${name}/`),
-    preview: (name, data) => apiClient.post(`/prompts/${name}/preview/`, data),
-    render: (name, variables) => apiClient.get(`/prompts/${name}/render/`, { params: { variables } }),
-    createFromRetellAgent: (data) => apiClient.post('/prompts/from-retell-agent/', data),
-    listCategories: () => apiClient.get('/prompts/categories/list/'),
-    getByCategory: (category) => apiClient.get(`/prompts/category/${category}/`)
+    // Templates
+    list: (params = {}) => apiClient.get('/prompts/templates', { params }),
+    get: (templateId) => apiClient.get(`/prompts/templates/${templateId}`),
+    create: (data) => apiClient.post('/prompts/templates', data),
+    update: (templateId, data) => apiClient.put(`/prompts/templates/${templateId}`, data),
+    delete: (templateId) => apiClient.delete(`/prompts/templates/${templateId}`),
+    importFromFiles: () => apiClient.post('/prompts/templates/import-from-files'),
+    
+    // Categories  
+    listCategories: () => apiClient.get('/prompts/categories'),
+    
+    // Scenarios
+    listScenarios: (params = {}) => apiClient.get('/prompts/scenarios', { params }),
+    getScenario: (scenarioId) => apiClient.get(`/prompts/scenarios/${scenarioId}`),
+    createScenario: (data) => apiClient.post('/prompts/scenarios', data),
+    updateScenario: (scenarioId, data) => apiClient.put(`/prompts/scenarios/${scenarioId}`, data),
+    deleteScenario: (scenarioId) => apiClient.delete(`/prompts/scenarios/${scenarioId}`),
+    
+    // Assignments
+    listAssignments: (params = {}) => apiClient.get('/prompts/assignments', { params }),
+    createAssignment: (data) => apiClient.post('/prompts/assignments', data),
+    createBulkAssignments: (data) => apiClient.post('/prompts/assignments/bulk', data),
+    deleteAssignment: (assignmentId) => apiClient.delete(`/prompts/assignments/${assignmentId}`)
   },
 
   // SyncroMSP
   syncro: {
+    // Status
+    getStatus: () => apiClient.get('/syncro/status/'),
+    
     // Tickets
     listTickets: (params = {}) => apiClient.get('/syncro/tickets/', { params }),
     getTicket: (id) => apiClient.get(`/syncro/tickets/${id}/`),

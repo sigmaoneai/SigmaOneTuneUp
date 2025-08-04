@@ -16,6 +16,10 @@
               <UserGroupIcon class="w-4 h-4 mr-2" />
               Agent-to-Agent Call
             </button>
+            <button @click="syncCallsFromRetell" class="btn btn-secondary mr-3">
+              <ArrowPathIcon class="w-4 h-4 mr-2" />
+              Sync from Retell
+            </button>
             <button @click="refreshCalls" class="btn btn-primary">
               <ArrowPathIcon class="w-4 h-4 mr-2" />
               Refresh
@@ -108,12 +112,12 @@
                       </div>
                     </div>
                     <div class="ml-4">
-                      <div class="text-sm font-medium text-gray-900">{{ call.phone_number }}</div>
+                      <div class="text-sm font-medium text-gray-900">{{ call.from_number }} → {{ call.to_number }}</div>
                       <div class="text-sm text-gray-500">
                         <span v-if="call.direction === 'agent_to_agent'">
                           {{ call.caller_agent_name }} → {{ call.inbound_agent_name }}
                         </span>
-                        <span v-else">Agent: {{ call.agent_name }}</span>
+                        <span v-else">{{ call.direction }} call</span>
                       </div>
                     </div>
                   </div>
@@ -129,11 +133,11 @@
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {{ formatDuration(call.duration) }}
+                  {{ formatDuration(call.duration || (call.duration_ms ? Math.floor(call.duration_ms / 1000) : 0)) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <span :class="getStatusBadge(call.status)" class="badge">
-                    {{ call.status }}
+                  <span :class="getStatusBadge(call.status || 'completed')" class="badge">
+                    {{ call.status || 'completed' }}
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -228,10 +232,9 @@ const filteredCalls = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(call => 
-      call.phone_number.includes(query) ||
-      call.agent_name?.toLowerCase().includes(query) ||
-      call.caller_agent_name?.toLowerCase().includes(query) ||
-      call.inbound_agent_name?.toLowerCase().includes(query)
+      call.from_number.includes(query) ||
+      call.to_number.includes(query) ||
+      call.transcript?.toLowerCase().includes(query)
     )
   }
 
@@ -259,7 +262,7 @@ const loadCalls = async () => {
   loading.value = true
   try {
     const response = await api.retell.listCalls()
-    calls.value = response.data.calls || []
+    calls.value = response.data || []
   } catch (error) {
     toast.error('Failed to load calls')
   } finally {
@@ -269,6 +272,17 @@ const loadCalls = async () => {
 
 const refreshCalls = () => {
   loadCalls()
+}
+
+const syncCallsFromRetell = async () => {
+  try {
+    toast.info('Syncing calls from Retell.ai...')
+    await api.calls.syncAllFromRetell()
+    toast.success('Calls synced successfully')
+    loadCalls() // Refresh the list
+  } catch (error) {
+    toast.error('Failed to sync calls from Retell.ai')
+  }
 }
 
 const viewCall = (call) => {

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, computed_field
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from uuid import UUID
@@ -103,18 +103,21 @@ class EvalTestResponse(BaseModel):
 # Phone Number Schemas
 class PhoneNumberAssign(BaseModel):
     retell_phone_number_id: str
-    agent_id: int
+    agent_id: UUID
 
 class PhoneNumberResponse(BaseModel):
-    id: int
-    retell_phone_number_id: str
+    id: UUID
     phone_number: str
-    agent_id: Optional[int]
-    area_code: Optional[str]
-    inbound_agent_id: Optional[str]
-    outbound_agent_id: Optional[str]
-    created_at: datetime
-    is_active: bool
+    country_code: Optional[str] = None
+    description: Optional[str] = None
+    user_id: Optional[str] = None
+    agent_id: Optional[str] = None
+    phone_number_type: Optional[int] = None
+    retell_phone_number_id: Optional[str] = None
+    area_code: Optional[str] = None
+    inbound_agent_id: Optional[str] = None
+    outbound_agent_id: Optional[str] = None
+    is_active: bool = True
 
     class Config:
         from_attributes = True
@@ -126,15 +129,40 @@ class CallCreate(BaseModel):
     direction: str = "outbound"  # inbound, outbound
 
 class CallResponse(BaseModel):
-    id: str
-    direction: str
-    from_number: str
-    to_number: str
-    duration: int  # duration in seconds
-    transcript: str
-    recording_url: str
-    total_cost: float
+    id: UUID
+    retell_call_id: Optional[str] = None
+    agent_id: Optional[UUID] = None
+    caller_agent_id: Optional[UUID] = None
+    inbound_agent_id: Optional[UUID] = None
+    phone_number_id: Optional[UUID] = None
+    from_number: Optional[str] = None
+    to_number: Optional[str] = None
+    direction: Optional[str] = None
+    status: Optional[str] = None
+    start_timestamp: Optional[datetime] = None
+    end_timestamp: Optional[datetime] = None
+    duration_ms: Optional[str] = None
+    recording_url: Optional[str] = None
+    transcript: Optional[str] = None
+    call_analysis: Optional[dict] = None
+    call_metadata: Optional[dict] = None
     created_at: datetime
+    
+    # Computed fields for backward compatibility
+    @computed_field
+    @property
+    def duration(self) -> int:
+        """Convert duration_ms to seconds for backward compatibility"""
+        if self.duration_ms:
+            try:
+                return int(self.duration_ms) // 1000
+            except (ValueError, TypeError):
+                return 0
+        return 0
+    
+    # Agent names for display (populated by the API if agents are loaded)
+    caller_agent_name: Optional[str] = None
+    inbound_agent_name: Optional[str] = None
 
     class Config:
         from_attributes = True

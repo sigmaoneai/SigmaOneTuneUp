@@ -22,12 +22,12 @@
         </button>
       </div>
 
-      <!-- Mock Notice -->
-      <div class="px-6 py-3 bg-blue-50 border-b border-blue-200">
+      <!-- Real Data Notice -->
+      <div class="px-6 py-3 bg-green-50 border-b border-green-200">
         <div class="flex items-center">
-          <InformationCircleIcon class="w-5 h-5 text-blue-600 mr-2" />
-          <p class="text-sm text-blue-800">
-            Mock Data: Customer information is simulated for testing purposes.
+          <InformationCircleIcon class="w-5 h-5 text-green-600 mr-2" />
+          <p class="text-sm text-green-800">
+            Real Data: Customer information retrieved directly from SyncroMSP API.
           </p>
         </div>
       </div>
@@ -247,9 +247,9 @@
       <!-- Modal Footer -->
       <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
         <div class="flex items-center space-x-3">
-          <div v-if="customer.mock_data" class="flex items-center text-xs text-blue-600">
+          <div class="flex items-center text-xs text-green-600">
             <InformationCircleIcon class="w-3 h-3 mr-1" />
-            Mock Data
+            Real Data
           </div>
         </div>
         <div class="flex items-center space-x-3">

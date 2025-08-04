@@ -8,6 +8,8 @@ from datetime import datetime
 from loguru import logger
 
 from ..database import get_db, Call, CallEvent, RetellAgent
+from ..services.retell_service import retell_service
+from ..schemas import CallBase
 
 router = APIRouter()
 
@@ -267,3 +269,55 @@ async def test_agent_level_webhook():
             "speech_detected"
         ]
     } 
+
+@router.post("/conversation-flows")
+async def create_conversation_flow(request: Request, db: AsyncSession = Depends(get_db)):
+    """Create a new RetellAI conversation flow"""
+    try:
+        flow_data = await request.json()
+        result = await retell_service.create_conversation_flow(flow_data)
+        return result
+    except Exception as e:
+        logger.error(f"Error creating conversation flow: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/conversation-flows")
+async def list_conversation_flows(db: AsyncSession = Depends(get_db)):
+    """List all RetellAI conversation flows"""
+    try:
+        result = await retell_service.list_conversation_flows()
+        return result
+    except Exception as e:
+        logger.error(f"Error listing conversation flows: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/conversation-flows/{flow_id}")
+async def get_conversation_flow(flow_id: str, db: AsyncSession = Depends(get_db)):
+    """Get a specific RetellAI conversation flow"""
+    try:
+        result = await retell_service.get_conversation_flow(flow_id)
+        return result
+    except Exception as e:
+        logger.error(f"Error getting conversation flow: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/conversation-flows/{flow_id}")
+async def update_conversation_flow(flow_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Update a RetellAI conversation flow"""
+    try:
+        flow_data = await request.json()
+        result = await retell_service.update_conversation_flow(flow_id, flow_data)
+        return result
+    except Exception as e:
+        logger.error(f"Error updating conversation flow: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/conversation-flows/{flow_id}")
+async def delete_conversation_flow(flow_id: str, db: AsyncSession = Depends(get_db)):
+    """Delete a RetellAI conversation flow"""
+    try:
+        result = await retell_service.delete_conversation_flow(flow_id)
+        return {"success": result, "message": "Conversation flow deleted successfully" if result else "Failed to delete conversation flow"}
+    except Exception as e:
+        logger.error(f"Error deleting conversation flow: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 

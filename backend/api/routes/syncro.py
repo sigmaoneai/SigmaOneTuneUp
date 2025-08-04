@@ -13,135 +13,7 @@ from ..schemas import TicketCreate, TicketResponse, ErrorResponse
 
 router = APIRouter()
 
-# Mock data for READ-ONLY operations
-MOCK_CUSTOMERS = [
-    {
-        "id": 1,
-        "business_name": "Acme Corporation",
-        "contact_name": "John Smith",
-        "email": "john@acme.com",
-        "phone": "(555) 123-4567",
-        "address": "123 Main St, Anytown, ST 12345",
-        "created_at": "2024-01-15T10:30:00Z"
-    },
-    {
-        "id": 2,
-        "business_name": "Tech Solutions Inc",
-        "contact_name": "Sarah Johnson",
-        "email": "sarah@techsolutions.com",
-        "phone": "(555) 987-6543",
-        "address": "456 Oak Ave, Business City, ST 67890",
-        "created_at": "2024-02-03T14:22:00Z"
-    },
-    {
-        "id": 3,
-        "business_name": "Digital Marketing LLC",
-        "contact_name": "Mike Wilson",
-        "email": "mike@digitalmarketing.com",
-        "phone": "(555) 456-7890",
-        "address": "789 Pine Rd, Metro Town, ST 54321",
-        "created_at": "2024-01-28T09:15:00Z"
-    },
-    {
-        "id": 4,
-        "business_name": "Creative Design Studio",
-        "contact_name": "Emily Davis",
-        "email": "emily@creativedesign.com",
-        "phone": "(555) 321-9876",
-        "address": "321 Elm Dr, Art District, ST 98765",
-        "created_at": "2024-02-10T16:45:00Z"
-    },
-    {
-        "id": 5,
-        "business_name": "Global Consulting Group",
-        "contact_name": "Robert Chen",
-        "email": "robert@globalconsulting.com",
-        "phone": "(555) 654-3210",
-        "address": "654 Maple Blvd, Corporate Plaza, ST 13579",
-        "created_at": "2024-01-20T11:30:00Z"
-    }
-]
-
-# Mock tickets data for READ-ONLY operations
-MOCK_TICKETS = [
-    {
-        "id": 1,
-        "subject": "Email server not responding",
-        "status": "open",
-        "priority": "high",
-        "customer_id": 1,
-        "customer_business_then_name": "Acme Corporation - John Smith",
-        "problem_type": "Email Issues",
-        "created_at": "2024-03-15T09:30:00Z",
-        "updated_at": "2024-03-15T14:20:00Z",
-        "description": "Email server has been unresponsive since this morning. Users cannot send or receive emails.",
-        "assignee": "Jane Doe",
-        "comments": [
-            {"id": 1, "comment": "Investigating email server logs", "created_at": "2024-03-15T10:00:00Z", "author": "Jane Doe"},
-            {"id": 2, "comment": "Found disk space issue on mail server", "created_at": "2024-03-15T14:20:00Z", "author": "Jane Doe"}
-        ]
-    },
-    {
-        "id": 2,
-        "subject": "Network connectivity issues in main office",
-        "status": "urgent",
-        "priority": "critical",
-        "customer_id": 2,
-        "customer_business_then_name": "Tech Solutions Inc - Sarah Johnson",
-        "problem_type": "Network",
-        "created_at": "2024-03-14T16:45:00Z",
-        "updated_at": "2024-03-15T08:30:00Z",
-        "description": "Entire main office experiencing intermittent network connectivity issues affecting all operations.",
-        "assignee": "Mike Wilson",
-        "comments": []
-    },
-    {
-        "id": 3,
-        "subject": "Software installation request",
-        "status": "in_progress",
-        "priority": "medium",
-        "customer_id": 3,
-        "customer_business_then_name": "Digital Marketing LLC - Mike Wilson",
-        "problem_type": "Software",
-        "created_at": "2024-03-13T11:20:00Z",
-        "updated_at": "2024-03-14T09:15:00Z",
-        "description": "Need to install new design software on 5 workstations for the creative team.",
-        "assignee": "Sarah Johnson",
-        "comments": [
-            {"id": 1, "comment": "Software licenses ordered", "created_at": "2024-03-13T15:00:00Z", "author": "Sarah Johnson"}
-        ]
-    },
-    {
-        "id": 4,
-        "subject": "Printer maintenance and toner replacement",
-        "status": "completed",
-        "priority": "low",
-        "customer_id": 4,
-        "customer_business_then_name": "Creative Design Studio - Emily Davis",
-        "problem_type": "Hardware",
-        "created_at": "2024-03-12T14:30:00Z",
-        "updated_at": "2024-03-13T10:45:00Z",
-        "description": "Monthly printer maintenance and toner replacement for main office printer.",
-        "assignee": "Tech Support",
-        "comments": [
-            {"id": 1, "comment": "Maintenance completed, new toner installed", "created_at": "2024-03-13T10:45:00Z", "author": "Tech Support"}
-        ]
-    },
-    {
-        "id": 5,
-        "subject": "VPN access setup for remote employee",
-        "status": "open",
-        "priority": "medium",
-        "customer_id": 5,
-        "customer_business_then_name": "Global Consulting Group - Robert Chen",
-        "problem_type": "Remote Access",
-        "created_at": "2024-03-15T13:20:00Z",
-        "updated_at": "2024-03-15T13:20:00Z",
-        "description": "New remote employee needs VPN access configured for secure connection to company resources.",
-        "assignee": "Network Team",
-        "comments": []
-    }
-]
+# Real SyncroMSP data only - no mock data
 
 # ============================================================================
 # READ-ONLY OPERATIONS (ACTIVE)
@@ -154,69 +26,48 @@ async def list_tickets(
     limit: int = 100,
     db: AsyncSession = Depends(get_db)
 ):
-    """List tickets with optional filtering - READ-ONLY MOCK DATA"""
+    """List tickets with optional filtering from SyncroMSP API"""
     try:
-        logger.info(f"READ-ONLY: Fetching tickets with filters: status={status}, priority={priority}, limit={limit}")
+        logger.info(f"Fetching tickets from SyncroMSP with filters: status={status}, priority={priority}, limit={limit}")
         
-        # Filter mock tickets
-        filtered_tickets = MOCK_TICKETS.copy()
+        # Get tickets from SyncroMSP service
+        tickets = await syncro_service.get_tickets(status=status, limit=limit)
         
-        if status:
-            filtered_tickets = [t for t in filtered_tickets if t["status"] == status]
-        
+        # Apply priority filter if specified (SyncroMSP might not support this directly)
         if priority:
-            filtered_tickets = [t for t in filtered_tickets if t["priority"] == priority]
-        
-        # Apply limit
-        filtered_tickets = filtered_tickets[:limit]
+            tickets = [t for t in tickets if t.get("priority") == priority]
         
         return {
-            "tickets": filtered_tickets,
-            "count": len(filtered_tickets),
-            "total_available": len(MOCK_TICKETS),
+            "tickets": tickets,
+            "count": len(tickets),
             "filters_applied": {
                 "status": status,
                 "priority": priority,
                 "limit": limit
             },
-            "read_only_mode": True,
-            "notice": "This is READ-ONLY mode with mock data. No real SyncroMSP modifications will be made."
+            "source": "syncromsp_api"
         }
     
     except Exception as e:
-        logger.error(f"Error fetching tickets: {str(e)}")
+        logger.error(f"Error fetching tickets from SyncroMSP: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/tickets/{ticket_id}", response_model=dict)
 async def get_syncro_ticket_details(ticket_id: int):
-    """Get detailed ticket information - READ-ONLY MOCK DATA"""
+    """Get detailed ticket information from SyncroMSP API"""
     try:
-        logger.info(f"READ-ONLY: Fetching mock ticket details for ID: {ticket_id}")
+        logger.info(f"Fetching ticket details from SyncroMSP for ID: {ticket_id}")
         
-        # Find ticket in mock data
-        ticket = next((t for t in MOCK_TICKETS if t["id"] == ticket_id), None)
+        # Get ticket from SyncroMSP service
+        ticket = await syncro_service.get_ticket(ticket_id)
         
         if not ticket:
-            raise HTTPException(status_code=404, detail="Ticket not found in mock data")
+            raise HTTPException(status_code=404, detail="Ticket not found")
         
-        # Add some additional mock details
-        detailed_ticket = ticket.copy()
-        detailed_ticket.update({
-            "time_entries": [
-                {"id": 1, "description": "Initial diagnosis", "hours": 0.5, "date": "2024-03-15", "technician": "John Doe"},
-                {"id": 2, "description": "System repair", "hours": 2.0, "date": "2024-03-15", "technician": "Jane Smith"}
-            ],
-            "assets": [
-                {"id": 1, "name": "Server-01", "type": "Server", "location": "Data Center"},
-                {"id": 2, "name": "Switch-Main", "type": "Network Switch", "location": "Server Room"}
-            ],
-            "resolution_notes": "Issue resolved by restarting email service and updating network configuration.",
-            "customer_satisfaction": 4.5,
-            "read_only_mode": True,
-            "notice": "This is READ-ONLY mode with mock data."
-        })
-        
-        return detailed_ticket
+        return {
+            "ticket": ticket,
+            "source": "syncromsp_api"
+        }
     
     except HTTPException:
         raise
@@ -226,52 +77,40 @@ async def get_syncro_ticket_details(ticket_id: int):
 
 @router.get("/customers", response_model=dict)
 async def list_customers(limit: int = 100):
-    """List customers - READ-ONLY MOCK DATA"""
+    """List customers from SyncroMSP API"""
     try:
-        logger.info(f"READ-ONLY: Fetching mock customers with limit: {limit}")
+        logger.info(f"Fetching customers from SyncroMSP with limit: {limit}")
         
-        # Apply limit to mock customers
-        customers = MOCK_CUSTOMERS[:limit]
+        # Get customers from SyncroMSP service
+        customers = await syncro_service.get_customers(limit=limit)
         
         return {
             "customers": customers,
             "count": len(customers),
-            "total_available": len(MOCK_CUSTOMERS),
             "limit": limit,
-            "read_only_mode": True,
-            "notice": "This is READ-ONLY mode with mock data. No real SyncroMSP modifications will be made."
+            "source": "syncromsp_api"
         }
     
     except Exception as e:
-        logger.error(f"Error fetching customers: {str(e)}")
+        logger.error(f"Error fetching customers from SyncroMSP: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/customers/{customer_id}", response_model=dict)
 async def get_customer(customer_id: int):
-    """Get customer details - READ-ONLY MOCK DATA"""
+    """Get customer details from SyncroMSP API"""
     try:
-        logger.info(f"READ-ONLY: Fetching mock customer details for ID: {customer_id}")
+        logger.info(f"Fetching customer details from SyncroMSP for ID: {customer_id}")
         
-        # Find customer in mock data
-        customer = next((c for c in MOCK_CUSTOMERS if c["id"] == customer_id), None)
+        # Get customer from SyncroMSP service
+        customer = await syncro_service.get_customer(customer_id)
         
         if not customer:
-            raise HTTPException(status_code=404, detail="Customer not found in mock data")
+            raise HTTPException(status_code=404, detail="Customer not found")
         
-        # Add additional mock details
-        detailed_customer = customer.copy()
-        detailed_customer.update({
-            "tickets_count": len([t for t in MOCK_TICKETS if t["customer_id"] == customer_id]),
-            "open_tickets": len([t for t in MOCK_TICKETS if t["customer_id"] == customer_id and t["status"] == "open"]),
-            "last_activity": "2024-03-15T10:30:00Z",
-            "account_status": "active",
-            "billing_contact": customer["contact_name"],
-            "notes": f"Customer since {customer['created_at'][:4]}",
-            "read_only_mode": True,
-            "notice": "This is READ-ONLY mode with mock data."
-        })
-        
-        return detailed_customer
+        return {
+            "customer": customer,
+            "source": "syncromsp_api"
+        }
     
     except HTTPException:
         raise
@@ -281,26 +120,35 @@ async def get_customer(customer_id: int):
 
 @router.get("/customers/search/{search_term}")
 async def search_customers(search_term: str):
-    """Search customers by name, email, or phone - READ-ONLY MOCK DATA"""
+    """Search customers by name, email, or phone using SyncroMSP API"""
     try:
-        logger.info(f"READ-ONLY: Searching customers for term: {search_term}")
+        logger.info(f"Searching SyncroMSP customers for term: {search_term}")
+        
+        # Get all customers and filter locally
+        # Note: SyncroMSP may have specific search endpoints, but for now we'll filter client-side
+        all_customers = await syncro_service.get_customers(limit=1000)
         
         search_lower = search_term.lower()
         matching_customers = []
         
-        for customer in MOCK_CUSTOMERS:
-            if (search_lower in customer["business_name"].lower() or
-                search_lower in customer["contact_name"].lower() or
-                search_lower in customer["email"].lower() or
-                search_lower in customer["phone"]):
+        for customer in all_customers:
+            # Search in various fields - adjust based on SyncroMSP API response structure
+            business_name = customer.get("business_name", "").lower()
+            contact_name = customer.get("contact_name", "").lower()
+            email = customer.get("email", "").lower()
+            phone = customer.get("phone", "")
+            
+            if (search_lower in business_name or
+                search_lower in contact_name or
+                search_lower in email or
+                search_lower in phone):
                 matching_customers.append(customer)
         
         return {
             "customers": matching_customers,
             "search_term": search_term,
             "count": len(matching_customers),
-            "read_only_mode": True,
-            "notice": "This is READ-ONLY mode with mock data. No real SyncroMSP modifications will be made."
+            "source": "syncromsp_api"
         }
     
     except Exception as e:
@@ -357,22 +205,78 @@ async def add_ticket_comment_disabled(
     }
 
 @router.get("/tickets/sync-from-syncro")
-async def sync_tickets_from_syncro_disabled(
+async def sync_tickets_from_syncro(
     status: Optional[str] = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
-    """SYNC OPERATION DISABLED - READ-ONLY MODE"""
-    logger.warning(f"BLOCKED SYNC OPERATION: Attempt to sync tickets from SyncroMSP")
-    
-    return {
-        "error": "SYNC operations are disabled in read-only mode",
-        "message": "This application is configured for READ-ONLY access to SyncroMSP data",
-        "operation": "sync_tickets",
-        "read_only_mode": True,
-        "recommendation": "Enable write operations to sync real data from SyncroMSP",
-        "mock_alternative": "Use GET /tickets for read-only access to mock ticket data"
-    }
+    """Sync tickets from SyncroMSP API (READ-ONLY) - fetches latest data without modifications"""
+    try:
+        logger.info(f"Syncing tickets from SyncroMSP API (read-only): status={status}, limit={limit}")
+        
+        # Get fresh tickets from SyncroMSP API
+        tickets = await syncro_service.get_tickets(status=status, limit=limit)
+        
+        # Count new vs existing (for stats - we're not actually writing to local DB in read-only mode)
+        new_count = len(tickets)  # All tickets are "new" since we're just fetching
+        updated_count = 0  # No updates in read-only mode
+        
+        return {
+            "message": "Tickets synced from SyncroMSP API (read-only mode)",
+            "new_count": new_count,
+            "updated_count": updated_count,
+            "total_tickets": len(tickets),
+            "tickets": tickets,
+            "filters_applied": {
+                "status": status,
+                "limit": limit
+            },
+            "read_only_mode": True,
+            "source": "syncromsp_api",
+            "note": "Data fetched from SyncroMSP API but not stored locally (read-only mode)"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error syncing tickets from SyncroMSP: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/status")
+async def get_syncro_connection_status():
+    """Get SyncroMSP connection status"""
+    try:
+        # Check if credentials are configured
+        has_credentials = syncro_service.api_key and syncro_service.base_url
+        
+        connection_status = {
+            "connected": has_credentials,
+            "read_only_mode": True,
+            "api_configured": has_credentials,
+            "base_url": syncro_service.base_url if has_credentials else None
+        }
+        
+        if has_credentials:
+            try:
+                # Test connection by fetching a small number of tickets
+                test_tickets = await syncro_service.get_tickets(limit=1)
+                connection_status["api_test"] = "success"
+                connection_status["last_test"] = datetime.utcnow().isoformat()
+            except Exception as e:
+                connection_status["connected"] = False
+                connection_status["api_test"] = "failed"
+                connection_status["error"] = str(e)
+        else:
+            connection_status["message"] = "SyncroMSP API credentials not configured"
+            
+        return connection_status
+        
+    except Exception as e:
+        logger.error(f"Error checking SyncroMSP status: {str(e)}")
+        return {
+            "connected": False,
+            "read_only_mode": True,
+            "api_configured": False,
+            "error": str(e)
+        }
 
 @router.post("/retell-tools/create-ticket")
 async def retell_tool_create_ticket_disabled(request: dict):
